@@ -1,0 +1,152 @@
+const express = require('express');
+const router = express.Router();
+const supabase = require('../supabaseClient');
+const { broadcastQueue } = require('../workers/broadcastWorker');
+
+// Trigger a broadcast campaign
+router.post('/broadcast', async (req, res) => {
+    try {
+        const { organizationId, targetStatus, templateName, templateLanguage, campaignName } = req.body;
+
+        if (!organizationId || !targetStatus || !templateName) {
+            return res.status(400).json({ error: 'Missing required parameters' });
+        }
+
+        // 1. Fetch Credentials
+        const { data: creds, error: credError } = await supabase
+            .from('b_whatsapp_credentials')
+            .select('*')
+            .eq('organization_id', organizationId)
+            .single();
+
+        if (credError || !creds) {
+            return res.status(400).json({ error: 'WhatsApp Credentials not found for this organization.' });
+        }
+
+        // 2. Fetch Leads
+        const { data: leads, error: leadError } = await supabase
+            .from('b_leads')
+            .select('*')
+            .eq('organization_id', organizationId)
+            .eq('status', targetStatus);
+
+        if (leadError || !leads || leads.length === 0) {
+            return res.status(400).json({ error: `No leads found with status: ${targetStatus}` });
+        }
+
+        // 3. Create Campaign Record
+        const { data: campaign, error: campError } = await supabase
+            .from('b_campaigns')
+            .insert({
+                organization_id: organizationId,
+                name: campaignName || `Broadcast - ${new Date().toISOString()}`,
+                template_name: templateName,
+                template_language: templateLanguage || 'en_US',
+                status: 'PROCESSING',
+                total_targets: leads.length
+            })
+            .select()
+            .single();
+
+        if (campError) throw campError;
+
+        // 4. Enqueue Jobs
+        const jobs = leads.map(lead => ({
+            name: 'sendMessage',
+            data: { 
+                leadId: lead.id, 
+                phone: lead.phone, 
+                creds, 
+                campaign 
+            }
+        }));
+
+        await broadcastQueue.addBulk(jobs);
+
+        res.json({
+            success: true,
+            campaign,
+            enqueuedCount: jobs.length
+        });
+
+    } catch (error) {
+        console.error('Broadcast Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Fetch all campaigns with stats for an organization
+router.get('/list/:organizationId', async (req, res) => {
+    try {
+        const { organizationId } = req.params;
+
+        // 1. Fetch campaigns
+        const { data: campaigns, error: campError } = await supabase
+            .from('b_campaigns')
+            .select('*')
+            .eq('organization_id', organizationId)
+            .order('created_at', { ascending: false });
+
+        if (campError) throw campError;
+
+        // 2. Fetch all delivery logs for these campaigns to aggregate stats
+        const campaignIds = campaigns.map(c => c.id);
+        
+        let logs = [];
+        if (campaignIds.length > 0) {
+            const { data: deliveryLogs, error: logError } = await supabase
+                .from('b_delivery_logs')
+                .select('campaign_id, status, channel')
+                .in('campaign_id', campaignIds);
+                
+            if (logError) throw logError;
+            logs = deliveryLogs || [];
+        }
+
+        // 3. Format the data to match frontend expectations
+        const formattedCampaigns = campaigns.map(campaign => {
+            const campaignLogs = logs.filter(l => l.campaign_id === campaign.id);
+            const totalTargets = campaign.total_targets || 0;
+            const sent = campaignLogs.filter(l => l.status.toLowerCase() === 'delivered' || l.status.toLowerCase() === 'sent').length;
+            const failed = campaignLogs.filter(l => l.status.toLowerCase() === 'failed').length;
+            
+            // Just infer channel from the first log or default to whatsapp/email/sms based on template
+            let channel = 'whatsapp';
+            if (campaignLogs.length > 0) {
+                channel = campaignLogs[0].channel || 'whatsapp';
+            } else if (campaign.template_name === 'email_custom') {
+                channel = 'email';
+            } else if (campaign.template_name === 'Custom SMS') {
+                channel = 'sms';
+            }
+
+            // Dynamically compute status
+            let currentStatus = campaign.status.toLowerCase();
+            if (currentStatus === 'processing' && totalTargets > 0) {
+                if (sent + failed >= totalTargets) {
+                    currentStatus = 'completed';
+                    // We should optimally update this in the DB, but computing dynamically works for MVP
+                }
+            }
+
+            return {
+                id: campaign.id,
+                name: campaign.name,
+                channel: channel,
+                targets: totalTargets,
+                sent: sent,
+                read: 0, // We don't have read receipts yet
+                status: currentStatus,
+                date: new Date(campaign.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+            };
+        });
+
+        res.json({ success: true, broadcasts: formattedCampaigns });
+
+    } catch (error) {
+        console.error('Fetch Campaigns Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+module.exports = router;
