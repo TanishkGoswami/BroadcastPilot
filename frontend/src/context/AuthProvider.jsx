@@ -31,27 +31,39 @@ export function AuthProvider({ children }) {
             });
         }
 
-        const fetchProfile = async (sessionUser) => {
-            if (!sessionUser) {
+        const fetchProfile = async (currentSession) => {
+            if (!currentSession?.user) {
                 setUserProfile(null);
                 setLoading(false);
                 return;
             }
-            const { data } = await supabase
-                .from('b_organization_members')
-                .select('organization_id, role')
-                .eq('user_id', sessionUser.id)
-                .single();
-            setUserProfile(data);
-            setLoading(false);
+            try {
+                // Fetch securely from our backend bypassing RLS
+                const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+                const res = await fetch(`${API_URL}/auth/me`, {
+                    headers: { 'Authorization': `Bearer ${currentSession.access_token}` }
+                });
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    setUserProfile(data);
+                } else {
+                    setUserProfile(null);
+                }
+            } catch (err) {
+                console.error("Failed to fetch profile", err);
+                setUserProfile(null);
+            } finally {
+                setLoading(false);
+            }
         };
 
         // 2. Get initial session
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
             setUser(session?.user ?? null);
-            if (session?.user) {
-                fetchProfile(session.user);
+            if (session) {
+                fetchProfile(session);
             } else {
                 setLoading(false);
             }
@@ -61,8 +73,8 @@ export function AuthProvider({ children }) {
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             setSession(session);
             setUser(session?.user ?? null);
-            if (session?.user) {
-                fetchProfile(session.user);
+            if (session) {
+                fetchProfile(session);
             } else {
                 setLoading(false);
             }

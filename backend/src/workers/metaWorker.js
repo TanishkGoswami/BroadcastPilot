@@ -3,6 +3,7 @@ const IORedis = require('ioredis');
 const supabase = require('../supabaseClient');
 const { parsePhoneNumberFromString } = require('libphonenumber-js');
 const axios = require('axios');
+const { getNextAgentId } = require('../utils/assignment');
 
 const connection = new IORedis(process.env.REDIS_URL || 'redis://127.0.0.1:6379', {
   maxRetriesPerRequest: null
@@ -74,15 +75,19 @@ const metaWorker = new Worker('metaSync', async job => {
         }
 
         // 5. Upsert into Supabase for ALL organizations tracking this page
-        const leadsToInsert = connections.map(conn => ({
-            organization_id: conn.organization_id,
-            name: name,
-            phone: phoneE164,
-            email: email,
-            spreadsheet_id: `meta_form_${formId || 'unknown'}`,
-            sheet_name: `Meta Ads - ${conn.page_name || pageId}`,
-            sheet_row_id: parseInt(leadgenId.substring(0, 8), 10) || 1, 
-            ingestion_batch_id: `meta_webhook_${job.id}`
+        const leadsToInsert = await Promise.all(connections.map(async conn => {
+            const nextAgentId = await getNextAgentId(conn.organization_id);
+            return {
+                organization_id: conn.organization_id,
+                name: name,
+                phone: phoneE164,
+                email: email,
+                agent_id: nextAgentId,
+                spreadsheet_id: `meta_form_${formId || 'unknown'}`,
+                sheet_name: `Meta Ads - ${conn.page_name || pageId}`,
+                sheet_row_id: parseInt(leadgenId.substring(0, 8), 10) || 1, 
+                ingestion_batch_id: `meta_webhook_${job.id}`
+            };
         }));
 
         const { error: insertError } = await supabase

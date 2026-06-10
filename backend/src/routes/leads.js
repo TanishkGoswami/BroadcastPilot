@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const supabase = require('../supabaseClient');
 const { google } = require('googleapis');
+const { getNextAgentId } = require('../utils/assignment');
 
 // Get all leads for an organization
 router.get('/', async (req, res) => {
@@ -39,10 +40,14 @@ router.post('/', async (req, res) => {
             return res.status(400).json({ error: 'Organization ID and Phone are required.' });
         }
 
+        // Automatically assign via Round Robin
+        const nextAgentId = await getNextAgentId(organization_id);
+
         const { data, error } = await supabase
             .from('b_leads')
             .insert([{
                 organization_id: organization_id,
+                agent_id: nextAgentId,
                 name: name || 'Unknown',
                 phone: phone,
                 email: email || null,

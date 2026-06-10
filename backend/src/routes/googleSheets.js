@@ -5,6 +5,7 @@ const xlsx = require('xlsx');
 const { google } = require('googleapis');
 const { parsePhoneNumberFromString } = require('libphonenumber-js');
 const supabase = require('../supabaseClient');
+const { getNextAgentId, getAgentsList } = require('../utils/assignment');
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -34,6 +35,15 @@ router.post('/upload', upload.single('file'), async (req, res) => {
         const invalidRows = [];
         const batchId = `file_batch_${Date.now()}`;
 
+        // Initialize Round Robin variables
+        const agents = await getAgentsList(organizationId);
+        let nextAgentIndex = 0;
+        if (agents.length > 0) {
+            const nextId = await getNextAgentId(organizationId);
+            nextAgentIndex = agents.findIndex(a => a.user_id === nextId);
+            if (nextAgentIndex === -1) nextAgentIndex = 0;
+        }
+
         // Start at 1 to skip header (Assumes Col 0 is Name, Col 1 is Phone, Col 2 is Email)
         for (let i = 1; i < rows.length; i++) {
             const name = rows[i][0];
@@ -53,12 +63,19 @@ router.post('/upload', upload.single('file'), async (req, res) => {
             const email = emailRaw ? String(emailRaw).trim().toLowerCase() : null;
 
             if (phoneE164 || email) {
+                let agent_id = null;
+                if (agents.length > 0) {
+                    agent_id = agents[nextAgentIndex].user_id;
+                    nextAgentIndex = (nextAgentIndex + 1) % agents.length;
+                }
+
                 leadsToInsert.push({
                     organization_id: organizationId,
                     name: name ? String(name) : 'Unknown',
                     phone: phoneE164,
                     email: email,
                     status: 'PENDING',
+                    agent_id: agent_id,
                     spreadsheet_id: 'FILE_UPLOAD',
                     sheet_name: file.originalname,
                     sheet_row_id: i + 1,
@@ -165,6 +182,15 @@ router.post('/ingest', async (req, res) => {
         const invalidRows = [];
         const batchId = `gsheet_batch_${Date.now()}`;
 
+        // Initialize Round Robin variables
+        const agents = await getAgentsList(organizationId);
+        let nextAgentIndex = 0;
+        if (agents.length > 0) {
+            const nextId = await getNextAgentId(organizationId);
+            nextAgentIndex = agents.findIndex(a => a.user_id === nextId);
+            if (nextAgentIndex === -1) nextAgentIndex = 0;
+        }
+
         for (let i = 1; i < rows.length; i++) {
             const row = rows[i];
             if (!row) continue;
@@ -186,12 +212,19 @@ router.post('/ingest', async (req, res) => {
             const email = emailRaw ? String(emailRaw).trim().toLowerCase() : null;
             
             if (phoneE164 || email) {
+                let agent_id = null;
+                if (agents.length > 0) {
+                    agent_id = agents[nextAgentIndex].user_id;
+                    nextAgentIndex = (nextAgentIndex + 1) % agents.length;
+                }
+
                 leadsToInsert.push({
                     organization_id: organizationId,
                     name: name ? String(name) : 'Unknown',
                     phone: phoneE164,
                     email: email,
                     status: 'PENDING',
+                    agent_id: agent_id,
                     spreadsheet_id: spreadsheetId,
                     sheet_name: sheetName,
                     sheet_row_id: i + 1,

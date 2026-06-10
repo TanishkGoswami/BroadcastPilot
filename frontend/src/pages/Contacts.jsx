@@ -13,8 +13,7 @@ export default function Contacts() {
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   
-  // Define isOwner more permissively so it covers standard and SSO logins
-  const isOwner = userProfile?.role === 'owner' || session?.user?.user_metadata?.role === 'owner' || !userProfile?.role;
+  const isOwner = userProfile?.role === 'owner' || session?.user?.user_metadata?.role === 'owner';
   
   const [showImportModal, setShowImportModal] = useState(false);
   const [uploadMode, setUploadMode] = useState('file'); // 'file' or 'sheet'
@@ -38,7 +37,7 @@ export default function Contacts() {
     
     fetchLeads();
     fetchMetaConnections();
-    if (userProfile?.role === 'owner') fetchTeam();
+    if (isOwner) fetchTeam();
 
     const subscription = supabase
       .channel('b_leads_changes')
@@ -310,9 +309,7 @@ export default function Contacts() {
                   <tr>
                     <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Name</th>
                     <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Phone</th>
-                    {isOwner && (
-                        <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Assignee</th>
-                    )}
+                    <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Assignee</th>
                     <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
                     <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-48">Action</th>
                   </tr>
@@ -322,7 +319,7 @@ export default function Contacts() {
                     <tr key={lead.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 text-sm font-medium text-gray-900">{lead.name || 'Unknown'}</td>
                       <td className="px-6 py-4 text-sm text-gray-600">{lead.phone}</td>
-                      {isOwner && (
+                      {isOwner ? (
                         <td className="px-6 py-4">
                           <select 
                             value={lead.agent_id || ''}
@@ -352,6 +349,12 @@ export default function Contacts() {
                                 <option key={t.user_id} value={t.user_id}>{t.auth_users?.email?.split('@')[0]}</option>
                             ))}
                           </select>
+                        </td>
+                      ) : (
+                        <td className="px-6 py-4">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            Assigned to You
+                          </span>
                         </td>
                       )}
                       <td className="px-6 py-4">

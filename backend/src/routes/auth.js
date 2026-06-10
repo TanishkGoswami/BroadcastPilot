@@ -3,11 +3,21 @@ const router = express.Router();
 const { google } = require('googleapis');
 const supabase = require('../supabaseClient');
 
+const authMiddleware = require('../middleware/authMiddleware');
+
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
   `${process.env.PUBLIC_BASE_URL || 'http://localhost:3001'}/api/auth/google/callback`
 );
+
+// 0. Get Current User Profile
+router.get('/me', authMiddleware, (req, res) => {
+    res.json({
+        organization_id: req.user.organization_id,
+        role: req.user.role
+    });
+});
 
 // 1. Redirect to Google Consent Screen
 router.get('/google', (req, res) => {

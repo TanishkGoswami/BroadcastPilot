@@ -14,18 +14,25 @@ router.get('/', async (req, res) => {
         // Both owners and agents can view the team (or maybe just owners, but agents might need it for assignments)
         const { data, error } = await supabase
             .from('b_organization_members')
-            .select(`
-                id,
-                organization_id,
-                user_id,
-                role,
-                created_at,
-                auth_users:user_id ( email )
-            `)
+            .select('*')
             .eq('organization_id', organization_id);
 
         if (error) throw error;
-        res.json(data);
+
+        // Fetch emails from auth.users manually since cross-schema joins fail in PostgREST
+        const teamWithEmails = await Promise.all(data.map(async (member) => {
+            try {
+                const { data: { user }, error: userError } = await supabase.auth.admin.getUserById(member.user_id);
+                return {
+                    ...member,
+                    auth_users: { email: user?.email || 'Unknown' }
+                };
+            } catch (err) {
+                return { ...member, auth_users: { email: 'Unknown' } };
+            }
+        }));
+
+        res.json(teamWithEmails);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -45,19 +52,35 @@ router.post('/invite', async (req, res) => {
             return res.status(400).json({ error: 'Email is required.' });
         }
 
-        // 1. Invite user via Supabase Auth (sends an invite email)
-        const { data: authData, error: authError } = await supabase.auth.admin.inviteUserByEmail(email);
+        let newUserId = null;
+        let finalLink = null;
+
+        // 1. Generate an invite link (assumes new user)
+        const { data: authData, error: authError } = await supabase.auth.admin.generateLink({
+            type: 'invite',
+            email: email
+        });
 
         if (authError) {
-            // If user already exists, admin.inviteUserByEmail might fail or return the user. 
-            // In a real app we'd handle existing users gracefully. For now, we'll try to find them.
-            if (authError.message.includes('already exists')) {
-                 return res.status(400).json({ error: 'User already has an account. Support for adding existing users coming soon!' });
-            }
-            throw authError;
-        }
+            // If user already exists, generateLink for invite throws "already been registered"
+            if (authError.message.includes('already been registered') || authError.message.includes('already exists')) {
+                // Generate a magic link instead. This gives us their user_id and a login link!
+                const { data: magicData, error: magicError } = await supabase.auth.admin.generateLink({
+                    type: 'magiclink',
+                    email: email
+                });
 
-        const newUserId = authData.user.id;
+                if (magicError) throw magicError;
+                
+                newUserId = magicData.user.id;
+                finalLink = magicData.properties.action_link;
+            } else {
+                throw authError;
+            }
+        } else {
+            newUserId = authData.user.id;
+            finalLink = authData.properties.action_link;
+        }
 
         // 2. Add them to b_organization_members
         const { error: memberError } = await supabase
@@ -70,7 +93,11 @@ router.post('/invite', async (req, res) => {
 
         if (memberError) throw memberError;
 
-        res.json({ success: true, message: 'Invitation sent successfully!' });
+        res.json({ 
+            success: true, 
+            message: 'Agent added successfully!',
+            link: finalLink
+        });
     } catch (error) {
         console.error('Invite Error:', error);
         res.status(500).json({ error: error.message });
