@@ -4,14 +4,23 @@ const supabase = require('../supabaseClient');
 const { google } = require('googleapis');
 
 // Get all leads for an organization
-router.get('/:organizationId', async (req, res) => {
+router.get('/', async (req, res) => {
     try {
-        const { organizationId } = req.params;
-        const { data, error } = await supabase
+        const { organization_id, role, id } = req.user;
+        
+        if (!organization_id) return res.status(400).json({ error: 'No organization linked' });
+
+        let query = supabase
             .from('b_leads')
             .select('*')
-            .eq('organization_id', organizationId)
+            .eq('organization_id', organization_id)
             .order('created_at', { ascending: false });
+            
+        if (role === 'agent') {
+            query = query.eq('agent_id', id);
+        }
+
+        const { data, error } = await query;
 
         if (error) throw error;
         res.json(data);
@@ -23,16 +32,17 @@ router.get('/:organizationId', async (req, res) => {
 // Create a single manual lead
 router.post('/', async (req, res) => {
     try {
-        const { organizationId, name, phone, email } = req.body;
+        const { name, phone, email } = req.body;
+        const { organization_id } = req.user;
         
-        if (!organizationId || !phone) {
+        if (!organization_id || !phone) {
             return res.status(400).json({ error: 'Organization ID and Phone are required.' });
         }
 
         const { data, error } = await supabase
             .from('b_leads')
             .insert([{
-                organization_id: organizationId,
+                organization_id: organization_id,
                 name: name || 'Unknown',
                 phone: phone,
                 email: email || null,
@@ -87,6 +97,32 @@ router.put('/:id/status', async (req, res) => {
             }
         }
 
+        res.json({ success: true, lead });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Assign a lead to an agent
+router.put('/:id/assign', async (req, res) => {
+    try {
+        const { id: leadId } = req.params;
+        const { agent_id } = req.body;
+        const { role, organization_id } = req.user;
+        
+        if (role !== 'owner') {
+            return res.status(403).json({ error: 'Only owners can assign leads.' });
+        }
+        
+        const { data: lead, error } = await supabase
+            .from('b_leads')
+            .update({ agent_id, updated_at: new Date().toISOString() })
+            .eq('id', leadId)
+            .eq('organization_id', organization_id)
+            .select()
+            .single();
+
+        if (error) throw error;
         res.json({ success: true, lead });
     } catch (error) {
         res.status(500).json({ error: error.message });

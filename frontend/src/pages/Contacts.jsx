@@ -1,14 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Upload, RefreshCw, FileSpreadsheet, File, Users } from 'lucide-react';
 import { supabase } from '../supabaseClient';
-
-const ORG_ID = 'test-org-123'; // IDMock Org 
-const API_URL = 'http://127.0.0.1:3001/api';
+import { useAuth } from '../context/AuthProvider';
 
 export default function Contacts() {
+  const { session, userProfile } = useAuth();
+  const ORG_ID = userProfile?.organization_id || session?.user?.user_metadata?.organization_id;
+  const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3001/api';
+
   const [leads, setLeads] = useState([]);
+  const [team, setTeam] = useState([]);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  
+  // Define isOwner more permissively so it covers standard and SSO logins
+  const isOwner = userProfile?.role === 'owner' || session?.user?.user_metadata?.role === 'owner' || !userProfile?.role;
   
   const [showImportModal, setShowImportModal] = useState(false);
   const [uploadMode, setUploadMode] = useState('file'); // 'file' or 'sheet'
@@ -28,10 +34,12 @@ export default function Contacts() {
   const fileInputRef = useRef(null);
 
   useEffect(() => {
+    if (!ORG_ID || !session) return;
+    
     fetchLeads();
     fetchMetaConnections();
+    if (userProfile?.role === 'owner') fetchTeam();
 
-    // Set up Supabase Realtime subscription for instant updates
     const subscription = supabase
       .channel('b_leads_changes')
       .on('postgres_changes', { 
@@ -40,19 +48,20 @@ export default function Contacts() {
         table: 'b_leads', 
         filter: `organization_id=eq.${ORG_ID}` 
       }, payload => {
-        console.log('Realtime update received:', payload);
-        fetchLeads(); // Refresh data on insert/update/delete
+        fetchLeads();
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(subscription);
     };
-  }, []);
+  }, [ORG_ID, session, userProfile]);
 
   const fetchLeads = async () => {
     try {
-      const res = await fetch(`${API_URL}/leads/${ORG_ID}`);
+      const res = await fetch(`${API_URL}/leads`, {
+        headers: { 'Authorization': `Bearer ${session.access_token}` }
+      });
       const data = await res.json();
       if (Array.isArray(data)) setLeads(data);
     } catch (error) {
@@ -60,9 +69,23 @@ export default function Contacts() {
     }
   };
 
+  const fetchTeam = async () => {
+    try {
+      const res = await fetch(`${API_URL}/team`, {
+        headers: { 'Authorization': `Bearer ${session.access_token}` }
+      });
+      const data = await res.json();
+      if (Array.isArray(data)) setTeam(data.filter(m => m.role === 'agent'));
+    } catch (error) {
+      console.error('Failed to fetch team', error);
+    }
+  };
+
   const fetchMetaConnections = async () => {
     try {
-      const res = await fetch(`${API_URL}/auth/meta/status/${ORG_ID}`);
+      const res = await fetch(`${API_URL}/auth/meta/status`, {
+        headers: { 'Authorization': `Bearer ${session.access_token}` }
+      });
       const data = await res.json();
       if (data.success && data.connections) {
         setMetaConnections(data.connections);
@@ -84,6 +107,7 @@ export default function Contacts() {
     try {
       const res = await fetch(`${API_URL}/sheets/upload`, {
         method: 'POST',
+        headers: { 'Authorization': `Bearer ${session.access_token}` },
         body: formData
       });
       const data = await res.json();
@@ -116,7 +140,10 @@ export default function Contacts() {
     try {
       const res = await fetch(`${API_URL}/sheets/headers`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({ spreadsheetId })
       });
       const data = await res.json();
@@ -151,10 +178,12 @@ export default function Contacts() {
     try {
       const res = await fetch(`${API_URL}/sheets/ingest`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({
           spreadsheetId: sheetUrl,
-          organizationId: ORG_ID,
           mapping: mapping
         })
       });
@@ -179,7 +208,10 @@ export default function Contacts() {
     try {
       await fetch(`${API_URL}/leads/${leadId}/status`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({ status: newStatus })
       });
       fetchLeads();
@@ -198,9 +230,11 @@ export default function Contacts() {
     try {
       const res = await fetch(`${API_URL}/leads`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({
-          organizationId: ORG_ID,
           name: newContact.name,
           phone: newContact.phone,
           email: newContact.email
@@ -276,6 +310,9 @@ export default function Contacts() {
                   <tr>
                     <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Name</th>
                     <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Phone</th>
+                    {isOwner && (
+                        <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Assignee</th>
+                    )}
                     <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
                     <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-48">Action</th>
                   </tr>
@@ -285,6 +322,38 @@ export default function Contacts() {
                     <tr key={lead.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 text-sm font-medium text-gray-900">{lead.name || 'Unknown'}</td>
                       <td className="px-6 py-4 text-sm text-gray-600">{lead.phone}</td>
+                      {isOwner && (
+                        <td className="px-6 py-4">
+                          <select 
+                            value={lead.agent_id || ''}
+                            onChange={async (e) => {
+                                setSyncing(true);
+                                try {
+                                    await fetch(`${API_URL}/leads/${lead.id}/assign`, {
+                                        method: 'PUT',
+                                        headers: { 
+                                            'Content-Type': 'application/json',
+                                            'Authorization': `Bearer ${session.access_token}`
+                                        },
+                                        body: JSON.stringify({ agent_id: e.target.value || null })
+                                    });
+                                    fetchLeads();
+                                } catch (err) {
+                                    console.error(err);
+                                } finally {
+                                    setSyncing(false);
+                                }
+                            }}
+                            disabled={syncing}
+                            className="border border-gray-300 rounded px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 w-32"
+                          >
+                            <option value="">Unassigned</option>
+                            {team.map(t => (
+                                <option key={t.user_id} value={t.user_id}>{t.auth_users?.email?.split('@')[0]}</option>
+                            ))}
+                          </select>
+                        </td>
+                      )}
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                           lead.status === 'INTERESTED' ? 'bg-green-100 text-green-800' :
@@ -490,8 +559,12 @@ export default function Contacts() {
                         Sync leads instantly from your Facebook and Instagram ad campaigns. No Zapier required.
                       </p>
                       <button 
-                        onClick={() => { window.location.href = `${API_URL}/auth/meta?organizationId=${ORG_ID}`; }}
-                        className="px-6 py-2 bg-[#0064e0] text-white font-medium rounded hover:bg-blue-700 transition-colors text-sm flex items-center gap-2"
+                        onClick={() => { 
+                            if (!ORG_ID) return alert('Organization ID not loaded yet. Please wait a moment.');
+                            window.location.href = `${API_URL}/auth/meta?organizationId=${ORG_ID}`; 
+                        }}
+                        disabled={!ORG_ID}
+                        className={`px-6 py-2 ${ORG_ID ? 'bg-[#0064e0] hover:bg-blue-700' : 'bg-gray-400 cursor-not-allowed'} text-white font-medium rounded transition-colors text-sm flex items-center gap-2`}
                       >
                         Login with Facebook
                       </button>

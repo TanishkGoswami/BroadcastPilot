@@ -128,7 +128,8 @@ router.post('/headers', async (req, res) => {
 // 3. Ingest via Google Sheets ID with Mapping
 router.post('/ingest', async (req, res) => {
     try {
-        const { spreadsheetId, organizationId, mapping } = req.body;
+        const { spreadsheetId, mapping } = req.body;
+        const organizationId = req.user?.organization_id || req.body.organizationId;
         
         if (!spreadsheetId || !organizationId || !mapping) {
             return res.status(400).json({ error: 'Missing required fields' });

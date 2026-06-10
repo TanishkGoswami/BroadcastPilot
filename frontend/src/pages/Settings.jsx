@@ -1,7 +1,11 @@
-import React, { useState } from 'react';
-import { X, Mail, Save, User, MapPin, ToggleLeft, ToggleRight, Smartphone, Key, Hash } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Mail, Save, User, MapPin, ToggleLeft, ToggleRight, Smartphone, Key, Hash, Check } from 'lucide-react';
+import { useAuth } from '../context/AuthProvider';
 
 export default function Settings() {
+  const { session } = useAuth();
+  const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3001/api';
+
   // Email Settings State
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [contactInfo, setContactInfo] = useState({ senderName: '', contactAddress: '', brandingEnabled: true });
@@ -11,6 +15,25 @@ export default function Settings() {
   const [smsInfo, setSmsInfo] = useState({ accountSid: '', authToken: '', fromNumber: '' });
   
   const [isSaving, setIsSaving] = useState(false);
+  const [isFacebookConnected, setIsFacebookConnected] = useState(false);
+
+  useEffect(() => {
+    const fetchMetaConnections = async () => {
+      if (!session?.access_token) return;
+      try {
+        const res = await fetch(`${API_URL}/auth/meta/status`, {
+          headers: { 'Authorization': `Bearer ${session.access_token}` }
+        });
+        const data = await res.json();
+        if (data.success && data.connections?.length > 0) {
+          setIsFacebookConnected(true);
+        }
+      } catch (err) {
+        console.error('Failed to fetch meta connections in Settings:', err);
+      }
+    };
+    fetchMetaConnections();
+  }, [session, API_URL]);
 
   const handleSaveContactInfo = async () => {
     setIsSaving(true);
@@ -88,7 +111,7 @@ export default function Settings() {
       name: 'Facebook',
       description: 'Build relationships with customers through interactive and tailored content.',
       icon: <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-lg">f</div>,
-      status: 'reconnect',
+      status: isFacebookConnected ? 'connected' : 'connect',
       badge: null
     },
     {
@@ -166,12 +189,16 @@ export default function Settings() {
                 </p>
                 
                 <button 
-                  className={`w-full py-2 px-4 rounded-md text-sm font-medium transition-colors border ${
-                    channel.status === 'reconnect' 
-                      ? 'border-gray-300 text-gray-700 hover:bg-gray-50' 
-                      : 'border-gray-200 text-gray-900 hover:border-gray-300 shadow-sm'
+                  className={`w-full py-2 px-4 rounded-md text-sm font-medium transition-colors border flex items-center justify-center gap-2 ${
+                    channel.status === 'connected'
+                      ? 'border-green-200 bg-green-50 text-green-700 cursor-default'
+                      : channel.status === 'reconnect' 
+                        ? 'border-gray-300 text-gray-700 hover:bg-gray-50' 
+                        : 'border-gray-200 text-gray-900 hover:border-gray-300 shadow-sm'
                   }`}
                   onClick={() => {
+                    if (channel.status === 'connected') return; // Do nothing if already connected
+                    
                     if (channel.id === 'whatsapp') {
                       alert('WhatsApp connection modal will open here.');
                     } else if (channel.id === 'email') {
@@ -183,7 +210,8 @@ export default function Settings() {
                     }
                   }}
                 >
-                  {channel.status === 'reconnect' ? 'Reconnect' : 'Connect'}
+                  {channel.status === 'connected' && <Check size={16} className="text-green-600" />}
+                  {channel.status === 'connected' ? 'Connected' : channel.status === 'reconnect' ? 'Reconnect' : 'Connect'}
                 </button>
               </div>
             ))}

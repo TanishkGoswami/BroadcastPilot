@@ -4,6 +4,9 @@ import Contacts from './pages/Contacts';
 import Campaigns from './pages/Campaigns';
 import Inbox from './pages/Inbox';
 import Settings from './pages/Settings';
+import TeamManagement from './pages/TeamManagement';
+import { AuthProvider, useAuth } from './context/AuthProvider';
+import { ProtectedRoute } from './components/ProtectedRoute';
 import { 
   Users, 
   MessageSquare, 
@@ -14,6 +17,8 @@ import {
 
 function Sidebar() {
   const location = useLocation();
+  const { user, userProfile, signOut } = useAuth();
+  const isOwner = userProfile?.role === 'owner' || user?.user_metadata?.role === 'owner' || !userProfile?.role;
 
   const getLinkClass = (path) => {
     const isActive = location.pathname === path || (path === '/contacts' && location.pathname === '/');
@@ -37,10 +42,14 @@ function Sidebar() {
       <div className="px-4 py-4">
         <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
           <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
-            <span className="text-blue-600 font-semibold text-xs">BP</span>
+            <span className="text-blue-600 font-semibold text-xs">
+              {user?.email ? user.email.substring(0, 2).toUpperCase() : 'BP'}
+            </span>
           </div>
           <div className="flex flex-col flex-1 overflow-hidden">
-            <span className="text-sm font-medium text-gray-900 truncate">My Account</span>
+            <span className="text-sm font-medium text-gray-900 truncate">
+              {user?.email || 'My Account'}
+            </span>
             <span className="text-xs text-white bg-green-600 rounded px-1.5 py-0.5 self-start mt-0.5">PRO</span>
           </div>
         </div>
@@ -64,6 +73,12 @@ function Sidebar() {
           <SettingsIcon size={18} />
           <span>Settings</span>
         </Link>
+        {isOwner && (
+          <Link to="/team" className={getLinkClass('/team')}>
+            <Users size={18} />
+            <span>Team</span>
+          </Link>
+        )}
       </nav>
 
       {/* Bottom Section */}
@@ -75,6 +90,13 @@ function Sidebar() {
         <div className="flex items-center gap-3 px-2 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 cursor-pointer">
           <HelpCircle size={18} />
           <span>Help</span>
+        </div>
+
+        <div 
+          onClick={signOut}
+          className="flex items-center gap-3 px-2 py-2 text-sm font-medium text-red-600 hover:text-red-700 cursor-pointer mt-2"
+        >
+          <span>Logout</span>
         </div>
         
         <div className="mt-2 bg-gray-50 rounded-lg p-3">
@@ -94,20 +116,25 @@ function Sidebar() {
 function App() {
   return (
     <BrowserRouter>
-      <div className="flex h-screen w-full bg-[#f8f9fa] overflow-hidden">
-        {/* Sidebar */}
-        <Sidebar />
+      <AuthProvider>
+        <ProtectedRoute>
+          <div className="flex h-screen w-full bg-[#f8f9fa] overflow-hidden">
+            {/* Sidebar */}
+            <Sidebar />
 
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col h-full overflow-hidden bg-white rounded-tl-xl border-t border-l border-gray-200 shadow-sm mt-2">
-          <Routes>
-            <Route path="/" element={<Contacts />} />
-            <Route path="/campaigns" element={<Campaigns />} />
-            <Route path="/inbox" element={<Inbox />} />
-            <Route path="/settings" element={<Settings />} />
-          </Routes>
-        </div>
-      </div>
+            {/* Main Content */}
+            <div className="flex-1 flex flex-col h-full overflow-hidden bg-white rounded-tl-xl border-t border-l border-gray-200 shadow-sm mt-2">
+              <Routes>
+                <Route path="/" element={<Contacts />} />
+                <Route path="/campaigns" element={<Campaigns />} />
+                <Route path="/inbox" element={<Inbox />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/team" element={<TeamManagement />} />
+              </Routes>
+            </div>
+          </div>
+        </ProtectedRoute>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

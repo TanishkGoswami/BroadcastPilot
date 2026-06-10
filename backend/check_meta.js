@@ -1,12 +1,13 @@
-const supabase = require('./src/supabaseClient');
+const { createClient } = require('@supabase/supabase-js');
+require('dotenv').config({ path: './.env' });
 
-async function check() {
-    const { data, error } = await supabase.from('b_meta_connections').select('*');
-    if (error) {
-        console.error('Error fetching:', error);
-    } else {
-        console.log('Total connections in DB:', data.length);
-        console.log('Data:', JSON.stringify(data, null, 2));
-    }
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+async function checkMembers() {
+    const { data, error } = await supabase.from('b_organization_members').select('*');
+    console.log('Members:', JSON.stringify(data, null, 2));
 }
-check();
+
+checkMembers();

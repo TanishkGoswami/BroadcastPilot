@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const supabase = require('../supabaseClient');
 const axios = require('axios');
+const authMiddleware = require('../middleware/authMiddleware');
 
 // Meta OAuth Configuration
 const META_CLIENT_ID = process.env.META_CLIENT_ID;
@@ -120,16 +121,30 @@ router.get('/callback', async (req, res) => {
 });
 
 // 3. Get connection status
-router.get('/status/:orgId', async (req, res) => {
+router.get('/status', authMiddleware, async (req, res) => {
+    console.log('--- GET /auth/meta/status ---');
+    console.log('User ID:', req.user?.id);
+    console.log('User Org ID:', req.user?.organization_id);
+
     try {
+        if (!req.user || !req.user.organization_id) {
+            console.log('Failed: User has no organization_id');
+            return res.status(400).json({ success: false, error: 'User does not belong to an organization' });
+        }
+
         const { data, error } = await supabase
             .from('b_meta_connections')
             .select('*')
-            .eq('organization_id', req.params.orgId);
+            .eq('organization_id', req.user.organization_id);
             
+        console.log('Supabase fetch error:', error);
+        console.log('Supabase fetch data length:', data ? data.length : 0);
+        console.log('Connections data:', data);
+
         if (error) throw error;
         res.json({ success: true, connections: data });
     } catch (err) {
+        console.error('Status fetch error:', err);
         res.status(500).json({ success: false, error: err.message });
     }
 });

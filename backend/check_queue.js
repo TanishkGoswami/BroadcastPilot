@@ -4,18 +4,24 @@ const IORedis = require('ioredis');
 const connection = new IORedis('redis://127.0.0.1:6379');
 const metaSyncQueue = new Queue('metaSync', { connection });
 
-async function check() {
+async function checkFailed() {
     const failed = await metaSyncQueue.getFailed();
-    console.log(`Failed jobs: ${failed.length}`);
-    for (const job of failed) {
-        console.log(`Job ${job.id} failed: ${job.failedReason}`);
+    if (failed.length > 0) {
+        console.log(`Found ${failed.length} failed jobs:`);
+        failed.forEach(job => {
+            console.log(`Job ${job.id} Data:`, job.data);
+            console.log(`Job ${job.id} Failed Reason:`, job.failedReason);
+        });
+    } else {
+        console.log('No failed jobs found in metaSync queue.');
     }
-
+    
     const completed = await metaSyncQueue.getCompleted();
-    console.log(`Completed jobs: ${completed.length}`);
-    for (const job of completed) {
-        console.log(`Job ${job.id} return value:`, job.returnvalue);
+    if (completed.length > 0) {
+        console.log(`Found ${completed.length} completed jobs.`);
+        console.log(`Latest completed job:`, completed[completed.length-1].returnvalue);
     }
     process.exit(0);
 }
-check();
+
+checkFailed();
