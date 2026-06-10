@@ -18,6 +18,7 @@ const smsCampaignsRoutes = require('./routes/smsCampaigns');
 const settingsRoutes = require('./routes/settings');
 const webhooksRoutes = require('./routes/webhooks');
 const authRoutes = require('./routes/auth');
+const whatsappRoutes = require('./routes/whatsapp');
 const metaAuthRoutes = require('./routes/metaAuth');
 const webhooksMetaRoutes = require('./routes/webhooksMeta');
 const teamRoutes = require('./routes/team');
@@ -38,6 +39,8 @@ app.use('/api/settings', authMiddleware, settingsRoutes);
 app.use('/api/team', authMiddleware, teamRoutes);
 app.use('/api/webhooks', webhooksRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/whatsapp', whatsappRoutes);
+app.use('/api/chat', chatRoutes);
 app.use('/api/auth/meta', metaAuthRoutes);
 app.use('/api/webhooks/meta', webhooksMetaRoutes);
 

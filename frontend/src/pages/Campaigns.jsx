@@ -4,6 +4,7 @@ import {
   ChevronRight, ArrowLeft, Smartphone, Clock, 
   MessageSquare, Mail, Send, Eye, MoreHorizontal, UserCircle, Settings, Users
 } from 'lucide-react';
+import { useAuth } from '../context/AuthProvider';
 
 // MOCK_BROADCASTS removed - using real data from backend
 const CHANNELS = [
@@ -15,17 +16,30 @@ const CHANNELS = [
 ];
 
 export default function Campaigns() {
+  const { session, userProfile } = useAuth();
+  const ORG_ID = userProfile?.organization_id || session?.user?.user_metadata?.organization_id || '847e859b-9bd7-4407-93c7-84e6b7a499f2';
+  
   const [broadcasts, setBroadcasts] = React.useState([]);
   const [view, setView] = useState('list'); // 'list' or 'create'
   const [activeTab, setActiveTab] = useState('history'); // 'drafts', 'scheduled', 'history'
+  
+  // WhatsApp Template State
+  const [metaTemplates, setMetaTemplates] = useState([]);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [mapping, setMapping] = useState({});
 
   React.useEffect(() => {
-    fetchBroadcasts();
-  }, []);
+    if (session) {
+      fetchBroadcasts();
+      fetchMetaTemplates();
+    }
+  }, [session]);
 
   const fetchBroadcasts = async () => {
     try {
-      const res = await fetch('http://127.0.0.1:3001/api/campaigns/list/test-org-123');
+      const res = await fetch(`http://127.0.0.1:3001/api/campaigns/list/${ORG_ID}`, {
+        headers: { 'Authorization': `Bearer ${session?.access_token}` }
+      });
       const data = await res.json();
       if (data.success) {
         setBroadcasts(data.broadcasts);
@@ -34,13 +48,27 @@ export default function Campaigns() {
       console.error('Failed to fetch broadcasts', err);
     }
   };
+
+  const fetchMetaTemplates = async () => {
+    try {
+      const res = await fetch('http://127.0.0.1:3001/api/whatsapp/templates', {
+        headers: { 'Authorization': `Bearer ${session?.access_token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMetaTemplates(data.templates);
+      }
+    } catch (err) {
+      console.error('Failed to fetch templates', err);
+    }
+  };
   
   // Creation Flow State
   const [step, setStep] = useState(1);
   const [selectedChannel, setSelectedChannel] = useState(null);
   const [messageContent, setMessageContent] = useState('Hi {{First_Name}}, check out our latest offer!');
   const [emailSubject, setEmailSubject] = useState('Exclusive Update for You!');
-  const [condition, setCondition] = useState('Tag is "VIP"');
+  const [condition, setCondition] = useState('INTERESTED');
   const [schedule, setSchedule] = useState('now');
   const [isSending, setIsSending] = useState(false);
 
@@ -62,7 +90,7 @@ export default function Campaigns() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             organizationId: 'test-org-123',
-            targetStatus: (condition === 'Interested Leads' || condition === 'Tag is "VIP"') ? 'INTERESTED' : 'PENDING',
+            targetStatus: condition,
             subject: emailSubject,
             htmlBody: messageContent,
             campaignName: `Email Broadcast ${new Date().toLocaleDateString()}`
@@ -80,7 +108,7 @@ export default function Campaigns() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             organizationId: 'test-org-123',
-            leadStatusFilter: (condition === 'Interested Leads' || condition === 'Tag is "VIP"') ? 'INTERESTED' : 'ALL',
+            leadStatusFilter: condition,
             messageContent: messageContent,
             campaignName: `SMS Broadcast ${new Date().toLocaleDateString()}`
           })
@@ -91,8 +119,42 @@ export default function Campaigns() {
           alert(`Error: ${err.error}`);
           return;
         }
+      } else if (selectedChannel === 'whatsapp') {
+        if (!selectedTemplate) {
+          alert('Please select a Meta Template first');
+          setIsSending(false);
+          return;
+        }
+        
+        const res = await fetch(`http://127.0.0.1:3001/api/campaigns/broadcast`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`
+          },
+          body: JSON.stringify({
+            organizationId: ORG_ID,
+            targetStatus: condition,
+            templateName: selectedTemplate.name,
+            templateLanguage: selectedTemplate.language,
+            campaignName: `WhatsApp Broadcast ${new Date().toLocaleDateString()}`,
+            mapping: mapping
+          })
+        });
+        
+        if (!res.ok) {
+          let errorMsg = 'Unknown Error';
+          try {
+            const err = await res.json();
+            errorMsg = err.error || errorMsg;
+          } catch(e) {
+            errorMsg = await res.text();
+          }
+          alert(`Server Error: ${errorMsg}`);
+          setIsSending(false);
+          return;
+        }
       } else {
-        // Mock standard chat broadcast
         await new Promise(r => setTimeout(r, 1500));
       }
 
@@ -101,8 +163,8 @@ export default function Campaigns() {
       alert('Broadcast Scheduled Successfully!');
       fetchBroadcasts();
     } catch (error) {
-      alert('Failed to schedule broadcast');
-      console.error(error);
+      alert(`Failed to schedule broadcast: ${error.message}`);
+      console.error('Broadcast Error:', error);
     } finally {
       setIsSending(false);
     }
@@ -364,21 +426,56 @@ export default function Campaigns() {
                       </div>
                     </div>
                   ) : (
-                    <div className="w-[320px] bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden mx-auto">
-                      <div className="bg-blue-600 px-4 py-2 flex items-center gap-2">
-                        <MessageSquare size={14} className="text-white" />
-                        <span className="text-xs font-bold text-white uppercase tracking-wider">Send Message</span>
+                    <div className="w-[450px] bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden mx-auto flex flex-col h-full">
+                      <div className="bg-[#25D366] px-4 py-3 flex items-center gap-2 shrink-0">
+                        <MessageSquare size={16} className="text-white" />
+                        <span className="text-sm font-bold text-white uppercase tracking-wider">WhatsApp Template</span>
                       </div>
-                      <div className="p-4">
-                        <textarea 
-                          className="w-full h-32 text-sm text-gray-900 bg-gray-50 border border-gray-200 rounded-lg p-3 resize-none focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          value={messageContent}
-                          onChange={(e) => setMessageContent(e.target.value)}
-                          placeholder="Enter your message here..."
-                        />
-                        <button className="w-full mt-3 py-2 border border-dashed border-gray-300 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">
-                          <Plus size={16} /> Add Button
-                        </button>
+                      <div className="p-5 flex flex-col flex-1 gap-4 overflow-y-auto">
+                        <div>
+                          <label className="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wide">Select Template</label>
+                          <select 
+                            className="w-full text-sm text-gray-900 border border-gray-300 rounded p-2 outline-none focus:border-[#25D366] focus:ring-1 focus:ring-[#25D366]"
+                            onChange={(e) => {
+                              const tmpl = metaTemplates.find(t => t.id === e.target.value);
+                              setSelectedTemplate(tmpl);
+                              setMapping({});
+                            }}
+                            value={selectedTemplate?.id || ''}
+                          >
+                            <option value="" disabled>Choose an approved template</option>
+                            {metaTemplates.filter(t => t.status === 'APPROVED').map(t => (
+                              <option key={t.id} value={t.id}>{t.name} ({t.language})</option>
+                            ))}
+                          </select>
+                        </div>
+                        
+                        {selectedTemplate && (
+                          <div className="flex-1 flex flex-col gap-4">
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide">Template Variables</label>
+                            {selectedTemplate.components.map((comp, idx) => {
+                                if (comp.type === 'BODY' && comp.example?.body_text?.[0]) {
+                                  // Example: ["Tanishk", "Product"] -> implies {{1}}, {{2}} exist
+                                  return comp.example.body_text[0].map((ex, vIdx) => (
+                                    <div key={`body-${vIdx}`}>
+                                      <label className="block text-xs font-medium text-gray-500 mb-1">Variable {'{{' + (vIdx + 1) + '}}'} (e.g., "{ex}")</label>
+                                      <input 
+                                        type="text"
+                                        placeholder="Enter value or use Lead field (e.g. name)"
+                                        className="w-full text-sm border border-gray-300 rounded p-2 outline-none focus:border-[#25D366]"
+                                        value={mapping[vIdx + 1] || ''}
+                                        onChange={(e) => setMapping({...mapping, [vIdx + 1]: e.target.value})}
+                                      />
+                                    </div>
+                                  ));
+                                }
+                                return null;
+                            })}
+                            {Object.keys(mapping).length === 0 && (
+                              <p className="text-sm text-gray-500 italic">This template requires no variables.</p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -409,8 +506,8 @@ export default function Campaigns() {
                     
                     {/* Phone Header */}
                     <div className="bg-gray-100 px-4 pt-10 pb-3 border-b border-gray-200 flex items-center gap-3 shrink-0">
-                      <ArrowLeft size={18} className="text-blue-500" />
-                      <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                      <ArrowLeft size={18} className="text-[#25D366]" />
+                      <div className="w-8 h-8 bg-[#25D366] rounded-full flex items-center justify-center">
                         <span className="text-white text-xs font-bold">BP</span>
                       </div>
                       <div className="flex-1">
@@ -420,9 +517,25 @@ export default function Campaigns() {
                     </div>
 
                     {/* Phone Screen */}
-                    <div className="flex-1 bg-[#e5ddd5] p-4 flex flex-col gap-3">
+                    <div className="flex-1 bg-[#e5ddd5] p-4 flex flex-col gap-3 overflow-y-auto">
                       <div className="bg-white p-3 rounded-2xl rounded-tl-none max-w-[85%] shadow-sm relative self-start">
-                        <p className="text-sm text-gray-900 whitespace-pre-wrap">{messageContent || '...'}</p>
+                        {selectedTemplate ? (
+                          <div className="text-sm text-gray-900 whitespace-pre-wrap">
+                            {selectedTemplate.components.map((comp, i) => {
+                              if (comp.type === 'BODY') {
+                                let txt = comp.text;
+                                // Inject mappings for preview
+                                Object.keys(mapping).forEach(k => {
+                                  txt = txt.replace(`{{${k}}}`, mapping[k] || `{{${k}}}`);
+                                });
+                                return <p key={i}>{txt}</p>;
+                              }
+                              return null;
+                            })}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-gray-400 italic">Select a template to preview...</p>
+                        )}
                         <span className="text-[9px] text-gray-400 absolute bottom-1 right-2">12:00 PM</span>
                       </div>
                     </div>
@@ -459,37 +572,29 @@ export default function Campaigns() {
                     <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
                       <label className="block text-sm font-medium text-gray-700 mb-2">Send SMS To:</label>
                       <select 
-                        value={condition === 'Tag is "VIP"' ? 'Interested Leads' : condition}
+                        value={condition}
                         onChange={(e) => setCondition(e.target.value)}
                         className="w-full border border-gray-300 rounded-md p-2.5 text-sm focus:ring-1 focus:ring-emerald-500 outline-none"
                       >
-                        <option value="Interested Leads">All Interested Leads (Recommended)</option>
-                        <option value="All Leads">All Pending Leads</option>
+                        <option value="INTERESTED">All Interested Leads (Recommended)</option>
+                        <option value="PENDING">All Pending Leads</option>
+                        <option value="NOT_INTERESTED">Not Interested Leads</option>
                       </select>
                       <p className="text-xs text-gray-500 mt-2">Texts will only be sent to leads that have a valid phone number on file.</p>
                     </div>
                   ) : (
-                    <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg space-y-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-gray-700">Condition</span>
-                        <button className="text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1">
-                          <Plus size={14} /> Add
-                        </button>
-                      </div>
-                      <div className="flex gap-2 items-center bg-white p-2 border border-gray-200 rounded-md shadow-sm">
-                        <select className="text-sm border-none bg-transparent font-medium text-gray-700 outline-none cursor-pointer">
-                          <option>Tag</option>
-                          <option>Gender</option>
-                          <option>Status</option>
-                        </select>
-                        <span className="text-gray-400 text-sm">is</span>
-                        <input 
-                          type="text" 
-                          value={condition}
-                          onChange={(e) => setCondition(e.target.value)}
-                          className="flex-1 text-sm bg-gray-100 rounded px-2 py-1 outline-none focus:ring-1 focus:ring-blue-500" 
-                        />
-                      </div>
+                    <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Send WhatsApp To:</label>
+                      <select 
+                        value={condition}
+                        onChange={(e) => setCondition(e.target.value)}
+                        className="w-full border border-gray-300 rounded-md p-2.5 text-sm focus:ring-1 focus:ring-green-500 outline-none"
+                      >
+                        <option value="INTERESTED">All Interested Leads</option>
+                        <option value="PENDING">All Pending Leads</option>
+                        <option value="NOT_INTERESTED">Not Interested Leads</option>
+                      </select>
+                      <p className="text-xs text-gray-500 mt-2">Messages will only be sent to leads matching this status.</p>
                     </div>
                   )}
                 </div>

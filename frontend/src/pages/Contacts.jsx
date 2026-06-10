@@ -33,28 +33,32 @@ export default function Contacts() {
   const fileInputRef = useRef(null);
 
   useEffect(() => {
-    if (!ORG_ID || !session) return;
+    if (!session) return;
     
+    console.log("Contacts.jsx mounted. ORG_ID:", ORG_ID, "isOwner:", isOwner, "userProfile:", userProfile);
+
     fetchLeads();
     fetchMetaConnections();
     if (isOwner) fetchTeam();
 
-    const subscription = supabase
-      .channel('b_leads_changes')
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'b_leads', 
-        filter: `organization_id=eq.${ORG_ID}` 
-      }, payload => {
-        fetchLeads();
-      })
-      .subscribe();
+    if (ORG_ID) {
+      const subscription = supabase
+        .channel('b_leads_changes')
+        .on('postgres_changes', { 
+          event: '*', 
+          schema: 'public', 
+          table: 'b_leads', 
+          filter: `organization_id=eq.${ORG_ID}` 
+        }, payload => {
+          fetchLeads();
+        })
+        .subscribe();
 
-    return () => {
-      supabase.removeChannel(subscription);
-    };
-  }, [ORG_ID, session, userProfile]);
+      return () => {
+        supabase.removeChannel(subscription);
+      };
+    }
+  }, [ORG_ID, session, userProfile, isOwner]);
 
   const fetchLeads = async () => {
     try {
@@ -62,7 +66,12 @@ export default function Contacts() {
         headers: { 'Authorization': `Bearer ${session.access_token}` }
       });
       const data = await res.json();
-      if (Array.isArray(data)) setLeads(data);
+      console.log("fetchLeads response:", data);
+      if (Array.isArray(data)) {
+        setLeads(data);
+      } else {
+        console.error("Leads data is not an array:", data);
+      }
     } catch (error) {
       console.error('Failed to fetch leads', error);
     }

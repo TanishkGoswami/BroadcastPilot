@@ -8,11 +8,15 @@ const authMiddleware = async (req, res, next) => {
         }
 
         const token = authHeader.split(' ')[1];
+        
+        if (!token || token === 'undefined' || token === 'null') {
+            return res.status(401).json({ error: 'Token is undefined or null' });
+        }
 
         const { data: { user }, error } = await supabase.auth.getUser(token);
 
         if (error || !user) {
-            console.error('Auth Middleware getUser Error:', error);
+            console.error(`Auth Middleware getUser Error for token [${token.substring(0, 15)}...]:`, error?.message || 'User not found');
             return res.status(401).json({ error: 'Unauthorized: ' + (error?.message || 'User not found') });
         }
 
@@ -30,9 +34,9 @@ const authMiddleware = async (req, res, next) => {
             req.user.organization_id = memberData.organization_id;
             req.user.role = memberData.role;
         } else {
-            // Default or handled elsewhere
-            req.user.organization_id = null;
-            req.user.role = null;
+            // Fallback to user_metadata for Google SSO Owners who don't have a row in b_organization_members
+            req.user.organization_id = user.user_metadata?.organization_id || null;
+            req.user.role = user.user_metadata?.role || null;
         }
 
         next();

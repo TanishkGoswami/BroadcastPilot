@@ -17,6 +17,12 @@ export default function Settings() {
   const [isSaving, setIsSaving] = useState(false);
   const [isFacebookConnected, setIsFacebookConnected] = useState(false);
 
+  // WhatsApp State
+  const [showWaModal, setShowWaModal] = useState(false);
+  const [waStatus, setWaStatus] = useState('disconnected');
+  const [waQr, setWaQr] = useState(null);
+  const [waAccount, setWaAccount] = useState(null);
+
   useEffect(() => {
     const fetchMetaConnections = async () => {
       if (!session?.access_token) return;
@@ -32,7 +38,27 @@ export default function Settings() {
         console.error('Failed to fetch meta connections in Settings:', err);
       }
     };
+    
+    const fetchWaStatus = async () => {
+      if (!session?.access_token) return;
+      try {
+        const res = await fetch(`${API_URL}/whatsapp/status`, {
+          headers: { 'Authorization': `Bearer ${session.access_token}` }
+        });
+        const data = await res.json();
+        if (data.connected) {
+          setWaStatus('connected');
+          setWaAccount(data.account);
+        } else {
+          setWaStatus('disconnected');
+        }
+      } catch (err) {
+        console.error('Failed to fetch WA status:', err);
+      }
+    };
+
     fetchMetaConnections();
+    fetchWaStatus();
   }, [session, API_URL]);
 
   const handleSaveContactInfo = async () => {
@@ -81,6 +107,40 @@ export default function Settings() {
     }
   };
 
+  const handleConnectWa = async () => {
+    setShowWaModal(true);
+    setWaStatus('connecting');
+    try {
+      const res = await fetch(`${API_URL}/whatsapp/qr`, {
+        headers: { 'Authorization': `Bearer ${session.access_token}` }
+      });
+      const data = await res.json();
+      if (data.qr) {
+        setWaQr(data.qr);
+        setWaStatus('qr_ready');
+      } else {
+        setWaStatus('error');
+      }
+    } catch (err) {
+      console.error(err);
+      setWaStatus('error');
+    }
+  };
+
+  const handleDisconnectWa = async () => {
+    try {
+      await fetch(`${API_URL}/whatsapp/logout`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session.access_token}` }
+      });
+      setWaStatus('disconnected');
+      setWaAccount(null);
+      setWaQr(null);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const channels = [
     {
       id: 'instagram',
@@ -103,8 +163,8 @@ export default function Settings() {
       name: 'WhatsApp',
       description: 'Use the world\'s most popular messaging app to chat and engage your customers.',
       icon: <div className="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center font-bold text-sm">Wa</div>,
-      status: 'connect',
-      badge: 'UPGRADE'
+      status: waStatus === 'connected' ? 'connected' : 'connect',
+      badge: null
     },
     {
       id: 'facebook',
@@ -197,10 +257,11 @@ export default function Settings() {
                         : 'border-gray-200 text-gray-900 hover:border-gray-300 shadow-sm'
                   }`}
                   onClick={() => {
-                    if (channel.status === 'connected') return; // Do nothing if already connected
+                    if (channel.status === 'connected' && channel.id !== 'whatsapp') return;
                     
                     if (channel.id === 'whatsapp') {
-                      alert('WhatsApp connection modal will open here.');
+                      if (waStatus === 'connected') setShowWaModal(true);
+                      else handleConnectWa();
                     } else if (channel.id === 'email') {
                       setShowEmailModal(true);
                     } else if (channel.id === 'sms') {
@@ -312,6 +373,70 @@ export default function Settings() {
               <button onClick={handleSaveSmsInfo} disabled={isSaving} className="flex items-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-sm font-bold shadow-sm transition-colors disabled:opacity-50">
                 {isSaving ? 'Activating...' : <><Smartphone size={16} /> Activate SMS & Get Number</>}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* WhatsApp Info / Connect Modal */}
+      {showWaModal && (
+        <div className="fixed inset-0 bg-gray-900/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl w-[500px] overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-gray-200">
+              <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <div className="w-6 h-6 bg-green-500 text-white rounded-full flex items-center justify-center font-bold text-xs">Wa</div>
+                WhatsApp Connection
+              </h2>
+              <button onClick={() => setShowWaModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-5 text-center">
+              {waStatus === 'connecting' && (
+                <div className="py-8">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto"></div>
+                  <p className="mt-4 text-gray-600 font-medium">Generating secure QR code...</p>
+                </div>
+              )}
+              
+              {waStatus === 'qr_ready' && waQr && (
+                <div className="py-4">
+                  <p className="text-sm text-gray-700 font-medium mb-4">Open WhatsApp on your phone, tap Menu &gt; Linked Devices, and scan this code:</p>
+                  <div className="bg-white p-4 border border-gray-200 rounded-xl inline-block shadow-sm">
+                    <img src={waQr} alt="WhatsApp QR Code" className="w-64 h-64" />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-4">This screen will automatically close when connected.</p>
+                </div>
+              )}
+              
+              {waStatus === 'connected' && waAccount && (
+                <div className="py-6">
+                  <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Check size={32} />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-1">WhatsApp is Connected</h3>
+                  <p className="text-gray-600 font-medium">Number: +{waAccount.display_phone_number}</p>
+                </div>
+              )}
+              
+              {waStatus === 'error' && (
+                <div className="py-6 text-red-600">
+                  <p className="font-bold">Failed to load QR code</p>
+                  <p className="text-sm mt-2">Please close this window and try again.</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-5 border-t border-gray-200 bg-gray-50 flex justify-end gap-3">
+              <button onClick={() => setShowWaModal(false)} className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors">
+                {waStatus === 'connected' ? 'Close' : 'Cancel'}
+              </button>
+              
+              {waStatus === 'connected' && (
+                <button onClick={handleDisconnectWa} className="px-4 py-2 text-sm font-medium text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 rounded-md transition-colors">
+                  Disconnect Account
+                </button>
+              )}
             </div>
           </div>
         </div>

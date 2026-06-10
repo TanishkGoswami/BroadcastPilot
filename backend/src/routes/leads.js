@@ -9,6 +9,8 @@ router.get('/', async (req, res) => {
     try {
         const { organization_id, role, id } = req.user;
         
+        console.log("GET /leads called by user:", id, "Role:", role, "Org:", organization_id);
+        
         if (!organization_id) return res.status(400).json({ error: 'No organization linked' });
 
         let query = supabase
@@ -18,14 +20,21 @@ router.get('/', async (req, res) => {
             .order('created_at', { ascending: false });
             
         if (role === 'agent') {
+            console.log("Filtering by agent_id:", id);
             query = query.eq('agent_id', id);
         }
 
         const { data, error } = await query;
 
-        if (error) throw error;
+        if (error) {
+            console.error("Supabase query error:", error);
+            throw error;
+        }
+        
+        console.log(`Found ${data.length} leads for this user`);
         res.json(data);
     } catch (error) {
+        console.error("GET /leads Catch Error:", error);
         res.status(500).json({ error: error.message });
     }
 });

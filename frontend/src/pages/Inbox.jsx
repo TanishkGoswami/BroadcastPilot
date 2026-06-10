@@ -2,13 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, MessageSquare, Settings, Check, AlertTriangle, Trash2, Star, Mail, Paperclip, Smile, Heart, UserCircle, ChevronDown, SlidersHorizontal } from 'lucide-react';
 
-const ORG_ID = 'test-org-123'; // Mock Org ID
-const API_URL = 'http://localhost:3001/api';
+import { useAuth } from '../context/AuthProvider';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 const TABS = ['All messages', 'Messenger', 'Instagram', 'WhatsApp'];
 const SUBTABS = ['All', 'Unread', 'Priority', 'Follow up'];
 
 export default function Inbox() {
+  const { session } = useAuth();
+  
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -21,14 +24,16 @@ export default function Inbox() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchConversations();
-  }, []);
+    if (session?.access_token) {
+      fetchConversations();
+    }
+  }, [session]);
 
   useEffect(() => {
-    if (selectedConversation) {
+    if (selectedConversation && session?.access_token) {
       fetchMessages(selectedConversation.id);
     }
-  }, [selectedConversation]);
+  }, [selectedConversation, session]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -36,7 +41,9 @@ export default function Inbox() {
 
   const fetchConversations = async () => {
     try {
-      const res = await fetch(`${API_URL}/chat/conversations/${ORG_ID}`);
+      const res = await fetch(`${API_URL}/chat/conversations`, {
+        headers: { 'Authorization': `Bearer ${session.access_token}` }
+      });
       const data = await res.json();
       if (Array.isArray(data)) {
         setConversations(data);
@@ -49,7 +56,9 @@ export default function Inbox() {
   const fetchMessages = async (conversationId) => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/chat/messages/${conversationId}`);
+      const res = await fetch(`${API_URL}/chat/messages/${conversationId}`, {
+        headers: { 'Authorization': `Bearer ${session.access_token}` }
+      });
       const data = await res.json();
       if (Array.isArray(data)) {
         setMessages(data);
@@ -60,6 +69,22 @@ export default function Inbox() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    // Setup Supabase Realtime for instant LiveChat updates
+    if (!session?.access_token) return;
+
+    // We will poll every 5 seconds as a simple fallback if Supabase Realtime isn't configured in frontend yet.
+    // In a production app, you would import supabase client here and use .channel('public:w_messages').on(...)
+    const interval = setInterval(() => {
+      fetchConversations();
+      if (selectedConversation) {
+        fetchMessages(selectedConversation.id);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [session, selectedConversation]);
 
   const getDisplayName = (contact) => {
     if (!contact) return "Unknown Contact";
