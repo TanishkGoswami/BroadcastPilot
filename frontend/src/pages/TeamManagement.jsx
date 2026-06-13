@@ -15,11 +15,10 @@ export default function TeamManagement() {
     const [inviteLink, setInviteLink] = useState('');
 
     const isOwner = userProfile?.role === 'owner' || session?.user?.user_metadata?.role === 'owner';
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-
+    
     const fetchTeam = async () => {
         try {
-            const response = await fetch(`${API_URL}/team`, {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/team`, {
                 headers: { 'Authorization': `Bearer ${session?.access_token}` }
             });
             
@@ -49,7 +48,7 @@ export default function TeamManagement() {
         setInviteLoading(true);
         setInviteLink('');
         try {
-            const response = await fetch(`${API_URL}/team/invite`, {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/team/invite`, {
                 method: 'POST',
                 headers: { 
                     'Authorization': `Bearer ${session?.access_token}`,

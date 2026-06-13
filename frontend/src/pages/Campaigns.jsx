@@ -37,7 +37,7 @@ export default function Campaigns() {
 
   const fetchBroadcasts = async () => {
     try {
-      const res = await fetch(`http://127.0.0.1:3001/api/campaigns/list/${ORG_ID}`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/campaigns/list/${ORG_ID}`, {
         headers: { 'Authorization': `Bearer ${session?.access_token}` }
       });
       const data = await res.json();
@@ -51,7 +51,7 @@ export default function Campaigns() {
 
   const fetchMetaTemplates = async () => {
     try {
-      const res = await fetch('http://127.0.0.1:3001/api/whatsapp/templates', {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/whatsapp/templates`, {
         headers: { 'Authorization': `Bearer ${session?.access_token}` }
       });
       const data = await res.json();
@@ -85,7 +85,7 @@ export default function Campaigns() {
     
     try {
       if (selectedChannel === 'email') {
-        const res = await fetch(`http://127.0.0.1:3001/api/email-campaigns/broadcast`, {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/email-campaigns/broadcast`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -103,7 +103,7 @@ export default function Campaigns() {
           return;
         }
       } else if (selectedChannel === 'sms') {
-        const res = await fetch(`http://127.0.0.1:3001/api/sms-campaigns/send`, {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/sms-campaigns/send`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -126,7 +126,7 @@ export default function Campaigns() {
           return;
         }
         
-        const res = await fetch(`http://127.0.0.1:3001/api/campaigns/broadcast`, {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/campaigns/broadcast`, {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
