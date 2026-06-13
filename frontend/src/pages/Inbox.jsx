@@ -4,7 +4,6 @@ import { Search, MessageSquare, Settings, Check, AlertTriangle, Trash2, Star, Ma
 
 import { useAuth } from '../context/AuthProvider';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 const TABS = ['All messages', 'Messenger', 'Instagram', 'WhatsApp'];
 const SUBTABS = ['All', 'Unread', 'Priority', 'Follow up'];
@@ -29,7 +28,7 @@ export default function Inbox() {
     if (isSyncing) return;
     setIsSyncing(true);
     try {
-      const res = await fetch(`${API_URL}/chat/sync-history`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/chat/sync-history`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -64,7 +63,7 @@ export default function Inbox() {
     setMessages(prev => [...prev, tempMsg]);
 
     try {
-      const res = await fetch(`${API_URL}/chat/messages`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/chat/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -121,7 +120,7 @@ export default function Inbox() {
 
   const fetchConversations = async () => {
     try {
-      const res = await fetch(`${API_URL}/chat/conversations`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/chat/conversations`, {
         headers: { 'Authorization': `Bearer ${session.access_token}` }
       });
       const data = await res.json();
@@ -136,7 +135,7 @@ export default function Inbox() {
   const fetchMessages = async (conversationId, showLoading = true) => {
     if (showLoading) setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/chat/messages/${conversationId}`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/chat/messages/${conversationId}`, {
         headers: { 'Authorization': `Bearer ${session.access_token}` }
       });
       const data = await res.json();

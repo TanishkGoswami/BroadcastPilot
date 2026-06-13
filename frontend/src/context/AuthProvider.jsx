@@ -39,8 +39,7 @@ export function AuthProvider({ children }) {
             }
             try {
                 // Fetch securely from our backend bypassing RLS
-                const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-                const res = await fetch(`${API_URL}/auth/me`, {
+                                const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/me`, {
                     headers: { 'Authorization': `Bearer ${currentSession.access_token}` }
                 });
                 

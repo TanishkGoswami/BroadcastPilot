@@ -6,8 +6,7 @@ import { useAuth } from '../context/AuthProvider';
 export default function Contacts() {
   const { session, userProfile } = useAuth();
   const ORG_ID = userProfile?.organization_id || session?.user?.user_metadata?.organization_id;
-  const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3001/api';
-
+  
   const [leads, setLeads] = useState([]);
   const [team, setTeam] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -73,7 +72,7 @@ export default function Contacts() {
 
   const fetchLeads = async () => {
     try {
-      const res = await fetch(`${API_URL}/leads`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/leads`, {
         headers: { 'Authorization': `Bearer ${session.access_token}` }
       });
       const data = await res.json();
@@ -92,7 +91,7 @@ export default function Contacts() {
 
   const fetchTeam = async () => {
     try {
-      const res = await fetch(`${API_URL}/team`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/team`, {
         headers: { 'Authorization': `Bearer ${session.access_token}` }
       });
       const data = await res.json();
@@ -104,7 +103,7 @@ export default function Contacts() {
 
   const fetchMetaConnections = async () => {
     try {
-      const res = await fetch(`${API_URL}/auth/meta/status`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/meta/status`, {
         headers: { 'Authorization': `Bearer ${session.access_token}` }
       });
       const data = await res.json();
@@ -126,7 +125,7 @@ export default function Contacts() {
     formData.append('organizationId', ORG_ID);
 
     try {
-      const res = await fetch(`${API_URL}/sheets/upload`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/sheets/upload`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${session.access_token}` },
         body: formData
@@ -159,7 +158,7 @@ export default function Contacts() {
     
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/sheets/headers`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/sheets/headers`, {
         method: 'POST',
         headers: { 
             'Content-Type': 'application/json',
@@ -197,7 +196,7 @@ export default function Contacts() {
     
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/sheets/ingest`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/sheets/ingest`, {
         method: 'POST',
         headers: { 
             'Content-Type': 'application/json',
@@ -227,7 +226,7 @@ export default function Contacts() {
   const updateStatus = async (leadId, newStatus) => {
     setSyncing(true);
     try {
-      await fetch(`${API_URL}/leads/${leadId}/status`, {
+      await fetch(`${import.meta.env.VITE_API_URL}/api/leads/${leadId}/status`, {
         method: 'PUT',
         headers: { 
             'Content-Type': 'application/json',
@@ -249,7 +248,7 @@ export default function Contacts() {
     
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/leads`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/leads`, {
         method: 'POST',
         headers: { 
             'Content-Type': 'application/json',
@@ -399,7 +398,7 @@ export default function Contacts() {
                                   onChange={async (e) => {
                                       setSyncing(true);
                                       try {
-                                          await fetch(`${API_URL}/leads/${lead.id}/assign`, {
+                                          await fetch(`${import.meta.env.VITE_API_URL}/api/leads/${lead.id}/assign`, {
                                               method: 'PUT',
                                               headers: { 
                                                   'Content-Type': 'application/json',
@@ -638,7 +637,7 @@ export default function Contacts() {
                         Syncing leads instantly in real-time
                       </div>
                       <button 
-                        onClick={() => { window.location.href = `${API_URL}/auth/meta?organizationId=${ORG_ID}`; }}
+                        onClick={() => { window.location.href = `${import.meta.env.VITE_API_URL}/api/auth/meta?organizationId=${ORG_ID}`; }}
                         className="px-6 py-2.5 bg-white border border-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-all text-sm shadow-sm"
                       >
                         Reconnect Account
@@ -653,7 +652,7 @@ export default function Contacts() {
                       <button 
                         onClick={() => { 
                             if (!ORG_ID) return alert('Organization ID not loaded yet. Please wait a moment.');
-                            window.location.href = `${API_URL}/auth/meta?organizationId=${ORG_ID}`; 
+                            window.location.href = `${import.meta.env.VITE_API_URL}/api/auth/meta?organizationId=${ORG_ID}`; 
                         }}
                         disabled={!ORG_ID}
                         className={`px-8 py-3 w-full ${ORG_ID ? 'bg-[#0064e0] hover:bg-blue-700 shadow-md hover:shadow-lg' : 'bg-gray-400 cursor-not-allowed'} text-white font-medium rounded-lg transition-all text-sm flex items-center justify-center gap-2`}

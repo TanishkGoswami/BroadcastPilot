@@ -11,7 +11,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthProvider';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 export default function Dashboard() {
   const { session, user } = useAuth();
@@ -31,11 +30,12 @@ export default function Dashboard() {
   const fetchAllData = async () => {
     setLoading(true);
     try {
+      const API_BASE = import.meta.env.VITE_API_URL;
       const headers = { 'Authorization': `Bearer ${session.access_token}` };
       
       const [leadsRes, convRes] = await Promise.all([
-        fetch(`${API_URL}/leads`, { headers }),
-        fetch(`${API_URL}/chat/conversations`, { headers })
+        fetch(`${API_BASE}/api/leads`, { headers }),
+        fetch(`${API_BASE}/api/chat/conversations`, { headers })
       ]);
       
       const leadsData = await leadsRes.json();
@@ -48,7 +48,7 @@ export default function Dashboard() {
       // but let's see if the user object has organization_id
       const orgId = user?.user_metadata?.organization_id || user?.organization_id;
       if (orgId) {
-        const campRes = await fetch(`${API_URL}/campaigns/list/${orgId}`, { headers });
+        const campRes = await fetch(`${API_BASE}/api/campaigns/list/${orgId}`, { headers });
         const campData = await campRes.json();
         if (campData.success && Array.isArray(campData.broadcasts)) {
           setCampaigns(campData.broadcasts);

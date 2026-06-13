@@ -4,8 +4,7 @@ import { useAuth } from '../context/AuthProvider';
 
 export default function Settings() {
   const { session, userProfile } = useAuth();
-  const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3001/api';
-
+  
   // Email Settings State
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [contactInfo, setContactInfo] = useState({ senderName: '', contactAddress: '', brandingEnabled: true });
@@ -28,7 +27,7 @@ export default function Settings() {
     const fetchMetaConnections = async () => {
       if (!session?.access_token) return;
       try {
-        const res = await fetch(`${API_URL}/auth/meta/status`, {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/meta/status`, {
           headers: { 'Authorization': `Bearer ${session.access_token}` }
         });
         const data = await res.json();
@@ -46,7 +45,7 @@ export default function Settings() {
     const fetchWaStatus = async () => {
       if (!session?.access_token) return;
       try {
-        const res = await fetch(`${API_URL}/whatsapp/status`, {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/whatsapp/status`, {
           headers: { 'Authorization': `Bearer ${session.access_token}` }
         });
         const data = await res.json();
@@ -63,12 +62,12 @@ export default function Settings() {
 
     fetchMetaConnections();
     fetchWaStatus();
-  }, [session, API_URL]);
+  }, [session]);
 
   const handleSaveContactInfo = async () => {
     setIsSaving(true);
     try {
-      const res = await fetch(`http://localhost:3001/api/settings/email`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/settings/email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -91,7 +90,7 @@ export default function Settings() {
     try {
       const mockAssignedNumber = '+18166536732';
       
-      const res = await fetch(`http://127.0.0.1:3001/api/settings/sms`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/settings/sms`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -115,7 +114,7 @@ export default function Settings() {
     setShowWaModal(true);
     setWaStatus('connecting');
     try {
-      const res = await fetch(`${API_URL}/whatsapp/qr`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/whatsapp/qr`, {
         headers: { 'Authorization': `Bearer ${session.access_token}` }
       });
       const data = await res.json();
@@ -133,7 +132,7 @@ export default function Settings() {
 
   const handleDisconnectWa = async () => {
     try {
-      await fetch(`${API_URL}/whatsapp/logout`, {
+      await fetch(`${import.meta.env.VITE_API_URL}/api/whatsapp/logout`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${session.access_token}` }
       });
@@ -253,10 +252,10 @@ export default function Settings() {
                       else handleConnectWa();
                     } else if (channel.id === 'instagram') {
                       const orgId = userProfile?.organization_id || session?.user?.user_metadata?.organization_id || 'test-org-123';
-                      window.location.href = `${API_URL}/auth/meta/instagram?organizationId=${orgId}`;
+                      window.location.href = `${import.meta.env.VITE_API_URL}/api/auth/meta/instagram?organizationId=${orgId}`;
                     } else if (channel.id === 'facebook') {
                       const orgId = userProfile?.organization_id || session?.user?.user_metadata?.organization_id || 'test-org-123';
-                      window.location.href = `${API_URL}/auth/meta?organizationId=${orgId}`;
+                      window.location.href = `${import.meta.env.VITE_API_URL}/api/auth/meta?organizationId=${orgId}`;
                     } else if (channel.id === 'email') {
                       setShowEmailModal(true);
                     } else if (channel.id === 'sms') {
