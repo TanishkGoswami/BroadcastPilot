@@ -179,53 +179,56 @@ export default function Campaigns() {
     });
 
     return (
-      <div className="flex flex-col h-full bg-gray-50/50">
-        <div className="flex items-center justify-between px-8 py-6 border-b border-gray-200 bg-white">
-          <h1 className="text-2xl font-bold text-gray-900">Broadcasts</h1>
+      <div className="flex flex-col h-full bg-[#f4f5f7] font-sans">
+        <div className="flex items-center justify-between px-8 py-6 bg-white border-b border-gray-100 shadow-sm z-10 shrink-0">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Broadcasts</h1>
+            <p className="text-sm text-gray-500 mt-1">Manage and track your marketing campaigns.</p>
+          </div>
           <button 
             onClick={handleStartCreation}
-            className="flex items-center gap-2 bg-[#0070d1] hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium text-sm shadow-sm transition-colors"
+            className="flex items-center gap-2 bg-[#0070d1] hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-medium text-sm shadow-sm transition-all"
           >
             <Plus size={18} />
             New Broadcast
           </button>
         </div>
 
-        <div className="flex-1 p-8 overflow-auto">
-          <div className="max-w-6xl mx-auto">
+        <div className="flex-1 p-8 overflow-auto flex flex-col relative animate-fade-in-up">
+          <div className="max-w-6xl mx-auto w-full flex flex-col h-full">
             {/* Tabs & Search */}
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex bg-gray-100/80 p-1 rounded-lg border border-gray-200">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
+              <div className="flex bg-white p-1 rounded-xl border border-gray-200 shadow-sm">
                 <button 
                   onClick={() => setActiveTab('drafts')}
-                  className={`px-5 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === 'drafts' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                  className={`px-6 py-2 text-sm font-semibold rounded-lg transition-all ${activeTab === 'drafts' ? 'bg-[#0070d1] text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}
                 >
                   Drafts
                 </button>
                 <button 
                   onClick={() => setActiveTab('scheduled')}
-                  className={`px-5 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === 'scheduled' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                  className={`px-6 py-2 text-sm font-semibold rounded-lg transition-all ${activeTab === 'scheduled' ? 'bg-[#0070d1] text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}
                 >
                   Scheduled
                 </button>
                 <button 
                   onClick={() => setActiveTab('history')}
-                  className={`px-5 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === 'history' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                  className={`px-6 py-2 text-sm font-semibold rounded-lg transition-all ${activeTab === 'history' ? 'bg-[#0070d1] text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}
                 >
                   History
                 </button>
               </div>
 
-              <div className="flex gap-3">
-                <div className="relative">
+              <div className="flex gap-3 w-full sm:w-auto">
+                <div className="relative flex-1 sm:w-64">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                   <input 
                     type="text" 
                     placeholder="Search broadcasts..." 
-                    className="w-64 pl-9 pr-4 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-blue-500 outline-none"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm"
                   />
                 </div>
-                <button className="flex items-center gap-2 px-3 py-1.5 border border-gray-300 rounded-md text-gray-600 bg-white hover:bg-gray-50 text-sm font-medium">
+                <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-300 text-sm font-medium transition-all shadow-sm">
                   <Filter size={16} />
                   Filters
                 </button>
@@ -233,9 +236,10 @@ export default function Campaigns() {
             </div>
 
             {/* Table */}
-            <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-              <table className="w-full text-left border-collapse">
-                <thead className="bg-gray-50 border-b border-gray-200">
+            <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden flex flex-col flex-1">
+              <div className="overflow-auto flex-1">
+                <table className="w-full text-left border-collapse min-w-[800px]">
+                  <thead className="bg-gray-50/80 border-b border-gray-200 sticky top-0 z-10 backdrop-blur-sm">
                   <tr>
                     <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Name</th>
                     <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Target</th>
@@ -260,11 +264,11 @@ export default function Campaigns() {
                           </div>
                           <div>
                             <p className="text-sm font-bold text-gray-900">{b.name}</p>
-                            <span className={`inline-block mt-0.5 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                              b.status === 'sent' || b.status === 'completed' ? 'bg-green-100 text-green-700' :
-                              b.status === 'scheduled' ? 'bg-blue-100 text-blue-700' :
-                              b.status === 'processing' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-gray-200 text-gray-700'
+                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border mt-1 ${
+                              b.status === 'sent' || b.status === 'completed' ? 'bg-green-50 text-green-700 border-green-200' :
+                              b.status === 'scheduled' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                              b.status === 'processing' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                              'bg-gray-50 text-gray-700 border-gray-200'
                             }`}>
                               {b.status}
                             </span>
@@ -298,6 +302,7 @@ export default function Campaigns() {
           </div>
         </div>
       </div>
+    </div>
     );
   };
 
@@ -696,5 +701,9 @@ export default function Campaigns() {
     );
   };
 
-  return view === 'list' ? renderListView() : renderCreationFlow();
+  return (
+    <>
+      {view === 'list' ? renderListView() : renderCreationFlow()}
+    </>
+  );
 }

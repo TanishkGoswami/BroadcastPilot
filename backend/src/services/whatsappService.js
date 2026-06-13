@@ -29,26 +29,28 @@ async function upsertBaileysWaAccount(orgId, phone) {
 }
 
 async function upsertContact(orgId, waAccountId, contactWaId, name) {
-    const { data, error } = await supabase.from('w_contacts').upsert({
+    const { data, error } = await supabase.from('b_contacts').upsert({
         organization_id: orgId,
-        wa_account_id: waAccountId,
-        wa_id: contactWaId,
+        channel: 'whatsapp',
+        channel_user_id: contactWaId,
+        channel_account_id: waAccountId,
         name: name || contactWaId,
-    }, { onConflict: 'organization_id, wa_id' }).select('id').single();
+    }, { onConflict: 'organization_id, channel, channel_user_id' }).select('id').single();
     
     if (error) console.error("Error upserting contact:", error);
     return data;
 }
 
 async function upsertConversation(orgId, waAccountId, contactId, previewText, direction) {
-    const { data, error } = await supabase.from('w_conversations').upsert({
+    const { data, error } = await supabase.from('b_conversations').upsert({
         organization_id: orgId,
-        wa_account_id: waAccountId,
         contact_id: contactId,
+        channel: 'whatsapp',
+        channel_account_id: waAccountId,
         last_message_at: new Date().toISOString(),
         last_message_preview: previewText.substring(0, 100),
         status: 'open'
-    }, { onConflict: 'organization_id, wa_account_id, contact_id' }).select('id').single();
+    }, { onConflict: 'organization_id, contact_id, channel_account_id' }).select('id').single();
     
     if (error) console.error("Error upserting conversation:", error);
     return data;
@@ -153,17 +155,17 @@ async function initBaileysConnection(orgId, sessionId) {
                 const conv = await upsertConversation(orgId, waAccountId, contact.id, textContent, isOutbound ? 'outbound' : 'inbound');
 
                 // 3. Store Message
-                await supabase.from('w_messages').insert({
+                await supabase.from('b_messages').insert({
                     organization_id: orgId,
                     contact_id: contact.id,
                     conversation_id: conv.id,
-                    wa_message_id: msg.key.id,
+                    channel: 'whatsapp',
+                    message_remote_id: msg.key.id,
                     direction: isOutbound ? 'outbound' : 'inbound',
                     type: 'text', // simplification for now
                     content: { text: textContent },
                     status: isOutbound ? 'sent' : 'delivered',
-                    sender_type: isOutbound ? 'human_agent' : 'customer',
-                    automation_source: isOutbound ? 'manual' : 'webhook',
+                    sender_type: isOutbound ? 'human_agent' : 'customer'
                 });
                 
             } catch (err) {
@@ -202,9 +204,18 @@ async function logout(orgId, sessionId) {
     }
 }
 
+async function sendMessage(sessionId, to, text) {
+    const sock = sessions.get(sessionId);
+    if (!sock) throw new Error("WhatsApp not connected for this session.");
+    const jid = to.includes('@') ? to : `${to}@s.whatsapp.net`;
+    const result = await sock.sendMessage(jid, { text });
+    return result?.key?.id;
+}
+
 module.exports = {
     initBaileysConnection,
     getQrCode,
     isConnected,
-    logout
+    logout,
+    sendMessage
 };

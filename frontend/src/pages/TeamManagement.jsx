@@ -88,23 +88,24 @@ export default function TeamManagement() {
     }
 
     return (
-        <div className="flex-1 overflow-auto bg-gray-50/50 p-8">
-            <div className="max-w-4xl mx-auto space-y-6">
-                
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-900">Team Management</h1>
-                        <p className="text-gray-500 mt-1">Manage your agents and organization members.</p>
-                    </div>
-                    <button 
-                        onClick={() => setShowInviteModal(true)}
-                        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm"
-                    >
-                        <UserPlus size={18} />
-                        Invite Agent
-                    </button>
+        <div className="flex flex-col h-full w-full bg-[#f4f5f7] font-sans">
+            {/* Global Header */}
+            <div className="flex items-center justify-between px-8 py-6 bg-white border-b border-gray-100 shadow-sm z-10 shrink-0">
+                <div>
+                    <h2 className="text-2xl font-bold text-[#1c1e21] tracking-tight">Team Management</h2>
+                    <p className="text-sm text-gray-500 mt-1">Manage your agents and organization members.</p>
                 </div>
+                <button 
+                    onClick={() => setShowInviteModal(true)}
+                    className="flex items-center gap-2 bg-[#0070d1] hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all hover:shadow-md"
+                >
+                    <UserPlus size={18} />
+                    Invite Agent
+                </button>
+            </div>
+
+            <div className="flex-1 overflow-auto p-8 animate-fade-in-up">
+                <div className="max-w-5xl mx-auto space-y-6">
 
                 {error && (
                     <div className="bg-red-50 text-red-600 p-4 rounded-lg flex items-start gap-3">
@@ -114,10 +115,12 @@ export default function TeamManagement() {
                 )}
 
                 {/* Team List */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                    <div className="p-4 border-b border-gray-100 bg-gray-50 flex items-center gap-2 text-gray-700 font-semibold text-sm">
-                        <Users size={18} />
-                        Members ({team.length})
+                <div className="bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 overflow-hidden flex flex-col">
+                    <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-gray-700 font-bold text-sm uppercase tracking-wider">
+                            <Users size={18} className="text-[#0070d1]" />
+                            Members ({team.length})
+                        </div>
                     </div>
                     <div className="divide-y divide-gray-100">
                         {loading ? (
@@ -143,11 +146,16 @@ export default function TeamManagement() {
                             </div>
                         ))}
                         {!loading && team.length === 0 && (
-                            <div className="p-8 text-center text-gray-500">No team members found.</div>
+                            <div className="p-12 text-center flex flex-col items-center justify-center text-gray-500">
+                                <Users size={48} className="text-gray-200 mb-4" />
+                                <p className="font-medium text-gray-600">No team members found.</p>
+                                <p className="text-sm mt-1">Invite agents to collaborate on BroadcastPilot.</p>
+                            </div>
                         )}
                     </div>
                 </div>
 
+            </div>
             </div>
 
             {/* Invite Modal */}
@@ -240,6 +248,7 @@ export default function TeamManagement() {
                     </div>
                 </div>
             )}
+            
         </div>
     );
 }

@@ -33,25 +33,65 @@ router.post('/', async (req, res) => {
     try {
         const body = req.body;
 
-        if (body.object === 'page') {
+        if (body.object === 'page' || body.object === 'instagram') {
+            const channel = body.object === 'instagram' ? 'instagram' : 'messenger';
+            
             body.entry.forEach(entry => {
-                const pageId = entry.id;
+                const accountId = entry.id;
                 
-                entry.changes.forEach(async change => {
-                    if (change.field === 'leadgen') {
-                        const leadgenId = change.value.leadgen_id;
-                        const formId = change.value.form_id;
-                        
-                        console.log(`[Meta Webhook] Received new lead! Leadgen ID: ${leadgenId}, Page: ${pageId}`);
+                if (entry.changes) {
+                    entry.changes.forEach(async change => {
+                        if (change.field === 'leadgen') {
+                            const leadgenId = change.value.leadgen_id;
+                            const formId = change.value.form_id;
+                            
+                            console.log(`[Meta Webhook] Received new lead! Leadgen ID: ${leadgenId}, Page/Account: ${accountId}`);
 
-                        // Push the Leadgen ID to BullMQ so the worker can fetch the actual PII data
-                        await metaSyncQueue.add('syncMetaLead', {
-                            leadgenId: leadgenId,
-                            pageId: pageId,
-                            formId: formId
-                        });
-                    }
-                });
+                            // Push the Leadgen ID to BullMQ so the worker can fetch the actual PII data
+                            await metaSyncQueue.add('syncMetaLead', {
+                                leadgenId: leadgenId,
+                                pageId: accountId,
+                                formId: formId
+                            });
+                        }
+                        
+                        if (change.field === 'messages') {
+                            const event = change.value;
+                            
+                            if (event.message && !event.message.is_echo) {
+                                console.log(`[Meta Webhook] Received standalone IG message for account: ${accountId}`);
+                                await metaSyncQueue.add('syncMetaMessage', {
+                                    accountId: accountId,
+                                    event: event,
+                                    channel: 'instagram'
+                                });
+                            }
+                        }
+                    });
+                }
+
+                if (entry.messaging) {
+                    entry.messaging.forEach(async event => {
+                        
+                        if (event.message && !event.message.is_echo) {
+                            let actualChannel = channel;
+                            let targetAccountId = accountId;
+
+                            // If it came via the Page webhook, check if the recipient is the Instagram ID instead of the Page ID
+                            if (body.object === 'page' && event.recipient && event.recipient.id && event.recipient.id !== accountId) {
+                                actualChannel = 'instagram';
+                                targetAccountId = event.recipient.id;
+                            }
+
+                            console.log(`[Meta Webhook] Received message for account: ${targetAccountId} on channel: ${actualChannel}`);
+                            await metaSyncQueue.add('syncMetaMessage', {
+                                accountId: targetAccountId,
+                                event: event,
+                                channel: actualChannel
+                            });
+                        }
+                    });
+                }
             });
 
             // Return a 200 OK to tell Meta we received it successfully

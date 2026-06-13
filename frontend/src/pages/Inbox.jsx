@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, MessageSquare, Settings, Check, AlertTriangle, Trash2, Star, Mail, Paperclip, Smile, Heart, UserCircle, ChevronDown, SlidersHorizontal } from 'lucide-react';
+import { Search, MessageSquare, Settings, Check, AlertTriangle, Trash2, Star, Mail, Paperclip, Smile, Heart, UserCircle, ChevronDown, SlidersHorizontal, RefreshCw } from 'lucide-react';
 
 import { useAuth } from '../context/AuthProvider';
 
@@ -19,9 +19,89 @@ export default function Inbox() {
   const [activeTab, setActiveTab] = useState('All messages');
   const [activeSubTab, setActiveSubTab] = useState('All');
   const [newMessage, setNewMessage] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
+
+  const handleSyncHistory = async () => {
+    if (isSyncing) return;
+    setIsSyncing(true);
+    try {
+      const res = await fetch(`${API_URL}/chat/sync-history`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ channel: activeTab === 'Instagram' ? 'instagram' : 'messenger' })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      alert(data.message || 'Sync started successfully in the background!');
+    } catch (e) {
+      alert(`Failed to sync history: ${e.message}`);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !selectedConversation || isSending) return;
+    
+    setIsSending(true);
+    const tempText = newMessage;
+    setNewMessage('');
+    
+    // Optimistic UI update
+    const tempMsg = {
+      id: 'temp_' + Date.now(),
+      content: tempText,
+      direction: 'outbound',
+      created_at: new Date().toISOString()
+    };
+    setMessages(prev => [...prev, tempMsg]);
+
+    try {
+      const res = await fetch(`${API_URL}/chat/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          conversationId: selectedConversation.id,
+          text: tempText
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        alert(`Failed to send message: ${err.error}`);
+        // Revert optimistic update
+        setMessages(prev => prev.filter(m => m.id !== tempMsg.id));
+        setNewMessage(tempText);
+      } else {
+        const realMsg = await res.json();
+        setMessages(prev => prev.map(m => m.id === tempMsg.id ? { ...realMsg, content: realMsg.content.text } : m));
+      }
+    } catch (error) {
+      console.error("Send error", error);
+      alert('Failed to send message due to network error');
+      setMessages(prev => prev.filter(m => m.id !== tempMsg.id));
+      setNewMessage(tempText);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
 
   useEffect(() => {
     if (session?.access_token) {
@@ -53,8 +133,8 @@ export default function Inbox() {
     }
   };
 
-  const fetchMessages = async (conversationId) => {
-    setLoading(true);
+  const fetchMessages = async (conversationId, showLoading = true) => {
+    if (showLoading) setLoading(true);
     try {
       const res = await fetch(`${API_URL}/chat/messages/${conversationId}`, {
         headers: { 'Authorization': `Bearer ${session.access_token}` }
@@ -66,7 +146,7 @@ export default function Inbox() {
     } catch (error) {
       console.error("Failed to fetch messages", error);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
@@ -79,7 +159,7 @@ export default function Inbox() {
     const interval = setInterval(() => {
       fetchConversations();
       if (selectedConversation) {
-        fetchMessages(selectedConversation.id);
+        fetchMessages(selectedConversation.id, false);
       }
     }, 5000);
 
@@ -127,36 +207,29 @@ export default function Inbox() {
     <div className="flex flex-col h-full w-full bg-[#f4f5f7] overflow-hidden font-sans">
       
       {/* Global Header */}
-      <div className="flex items-center justify-between px-6 py-4 bg-[#f4f5f7] shrink-0">
+      <div className="flex items-center justify-between px-8 py-6 bg-white border-b border-gray-100 shadow-sm z-10 shrink-0">
         <div>
-          <h2 className="text-2xl font-bold text-[#1c1e21]">Inbox</h2>
-          <p className="text-sm text-gray-500">Respond to messages, set up automations and more.</p>
-        </div>
-        
-        <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-md text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">
-            <Settings size={16} />
-            Automations
-          </button>
+          <h2 className="text-2xl font-bold text-[#1c1e21] tracking-tight">Inbox</h2>
+          <p className="text-sm text-gray-500 mt-1">Respond to messages and manage your conversations.</p>
         </div>
       </div>
 
       {/* Main Omnichat Container */}
-      <div className="flex-1 bg-white mx-4 mb-4 rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
+      <div className="flex-1 bg-white m-8 rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col animate-fade-in-up">
         
         {/* Top Tab Bar */}
-        <div className="flex items-center border-b border-gray-200 px-2 overflow-x-auto shrink-0 hide-scrollbar bg-white">
+        <div className="flex items-center border-b border-gray-100 px-2 overflow-x-auto shrink-0 hide-scrollbar bg-gray-50/40 backdrop-blur-sm">
           {TABS.map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-3 text-sm font-semibold whitespace-nowrap transition-colors relative ${
-                activeTab === tab ? 'text-blue-600' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+              className={`px-5 py-3.5 text-sm font-semibold whitespace-nowrap transition-all relative ${
+                activeTab === tab ? 'text-[#0070d1]' : 'text-gray-500 hover:text-gray-800'
               }`}
             >
               {tab}
               {activeTab === tab && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0070d1] rounded-t-full shadow-[0_-2px_4px_rgba(0,112,209,0.2)]" />
               )}
             </button>
           ))}
@@ -176,6 +249,19 @@ export default function Inbox() {
                   className="w-full pl-9 pr-4 py-1.5 bg-gray-100 border-transparent rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:bg-white focus:border-blue-300 transition-all"
                 />
               </div>
+
+              {(activeTab === 'Messenger' || activeTab === 'Instagram') && (
+                <button 
+                  onClick={handleSyncHistory}
+                  disabled={isSyncing}
+                  className="flex items-center gap-1.5 px-3 py-1.5 border border-blue-200 bg-blue-50 text-blue-700 rounded-md text-sm font-medium hover:bg-blue-100 transition-colors"
+                  title="Sync historical chats from the last 30 days"
+                >
+                  <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
+                  Sync
+                </button>
+              )}
+
               <button className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
                 <SlidersHorizontal size={14} />
                 Manage
@@ -219,8 +305,12 @@ export default function Inbox() {
                     >
                       <div className="relative">
                         <div className="h-12 w-12 rounded-full bg-gray-200 overflow-hidden flex items-center justify-center shrink-0">
-                          {/* Placeholder Avatar */}
-                          <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(getDisplayName(conv.contacts))}&background=random`} alt="avatar" />
+                          {/* Avatar */}
+                          <img 
+                            src={conv.contacts?.profile_pic || `https://ui-avatars.com/api/?name=${encodeURIComponent(getDisplayName(conv.contacts))}&background=random`} 
+                            alt="avatar" 
+                            className="w-full h-full object-cover"
+                          />
                         </div>
                         {getChannelIcon(conv.channel)}
                       </div>
@@ -253,7 +343,11 @@ export default function Inbox() {
                 <div className="flex items-center gap-3">
                   <div className="relative">
                     <div className="h-10 w-10 rounded-full bg-gray-200 overflow-hidden flex items-center justify-center shrink-0">
-                      <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(getDisplayName(selectedConversation.contacts))}&background=random`} alt="avatar" />
+                      <img 
+                        src={selectedConversation.contacts?.profile_pic || `https://ui-avatars.com/api/?name=${encodeURIComponent(getDisplayName(selectedConversation.contacts))}&background=random`} 
+                        alt="avatar" 
+                        className="w-full h-full object-cover"
+                      />
                     </div>
                     {getChannelIcon(selectedConversation.channel)}
                   </div>
@@ -267,13 +361,6 @@ export default function Inbox() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <button className="p-2 border border-gray-200 rounded text-gray-600 hover:bg-gray-50"><AlertTriangle size={16} /></button>
-                  <button className="p-2 border border-gray-200 rounded text-gray-600 hover:bg-gray-50"><Trash2 size={16} /></button>
-                  <button className="p-2 border border-gray-200 rounded text-gray-600 hover:bg-gray-50"><Star size={16} /></button>
-                  <button className="p-2 border border-gray-200 rounded text-gray-600 hover:bg-gray-50"><Mail size={16} /></button>
-                  <button className="p-2 border border-gray-200 rounded text-gray-600 hover:bg-gray-50"><Check size={16} /></button>
-                </div>
               </div>
 
               {/* Chat Messages */}
@@ -292,14 +379,14 @@ export default function Inbox() {
                         </div>
                         <div className={`flex items-end gap-2 ${isInbound ? 'flex-row' : 'flex-row-reverse'}`}>
                           {isInbound && (
-                            <div className="w-6 h-6 rounded-full overflow-hidden shrink-0">
+                            <div className="w-6 h-6 rounded-full overflow-hidden shrink-0 border border-gray-200">
                                <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(getDisplayName(selectedConversation.contacts))}&background=random`} alt="avatar" />
                             </div>
                           )}
                           <div className={`max-w-[70%] px-4 py-2.5 text-[14px] leading-snug ${
                             isInbound 
-                              ? 'bg-[#f0f2f5] text-gray-900 rounded-2xl rounded-bl-sm' 
-                              : 'bg-white border border-gray-200 shadow-sm text-gray-900 rounded-2xl rounded-br-sm'
+                              ? 'bg-gray-100/80 text-gray-900 rounded-2xl rounded-bl-sm border border-gray-200/50 shadow-sm' 
+                              : 'bg-gradient-to-br from-[#0070d1] to-blue-500 shadow-md text-white rounded-2xl rounded-br-sm'
                           }`}>
                             <p className="whitespace-pre-wrap">{msg.content}</p>
                           </div>
@@ -312,31 +399,34 @@ export default function Inbox() {
               </div>
 
               {/* Chat Input */}
-              <div className="p-4 border-t border-gray-100 bg-white m-4 border rounded-xl shadow-sm">
-                <textarea 
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Type a message..."
-                  className="w-full resize-none outline-none text-sm text-gray-900 min-h-[40px] max-h-[120px]"
-                  rows="2"
-                />
-                <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
-                  <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 border border-gray-200">
-                    <img src="https://ui-avatars.com/api/?name=Agent&background=random" alt="Agent" />
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <button className="text-gray-400 hover:text-gray-600"><Paperclip size={18} /></button>
-                    <button className="text-gray-400 hover:text-gray-600"><Smile size={18} /></button>
-                    <button className="text-gray-400 hover:text-gray-600"><Heart size={18} /></button>
-                  </div>
+              <div className="px-6 py-4 bg-white border-t border-gray-100 shrink-0">
+                <div className="flex items-center gap-2 border border-gray-200 rounded-xl bg-gray-50/50 focus-within:bg-white focus-within:border-[#0070d1] focus-within:ring-2 focus-within:ring-blue-100/50 transition-all shadow-sm pl-4 pr-2 py-2">
+                  <textarea 
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Type a message..."
+                    className="flex-1 resize-none outline-none text-sm text-gray-900 bg-transparent py-1.5 h-8 my-auto leading-relaxed hide-scrollbar"
+                    rows="1"
+                    disabled={isSending}
+                  />
+                  <button 
+                    onClick={handleSendMessage}
+                    disabled={isSending || !newMessage.trim()}
+                    className="px-5 py-2 bg-[#0070d1] text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow active:scale-95 shrink-0"
+                  >
+                    Send
+                  </button>
                 </div>
               </div>
 
             </div>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center bg-gray-50/50">
-              <MessageSquare size={48} className="text-gray-300 mb-4" />
-              <p className="text-gray-500 font-medium">Select a conversation to view chat</p>
+            <div className="flex-1 flex flex-col items-center justify-center bg-gray-50/30">
+              <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-sm border border-gray-100 mb-4 animate-fade-in-up">
+                <MessageSquare size={32} className="text-blue-200" />
+              </div>
+              <p className="text-gray-500 font-medium tracking-tight animate-fade-in-up" style={{ animationDelay: '100ms' }}>Select a conversation to view chat</p>
             </div>
           )}
         </div>

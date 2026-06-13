@@ -123,3 +123,20 @@ CREATE TABLE IF NOT EXISTS public.b_sms_credentials (
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(organization_id)
 );
+
+-- 11. Meta Connections Table
+CREATE TABLE IF NOT EXISTS public.b_meta_connections (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    organization_id TEXT NOT NULL,
+    page_id TEXT, -- Nullable for standalone Instagram
+    page_name TEXT,
+    page_access_token TEXT,
+    instagram_id TEXT,
+    instagram_access_token TEXT,
+    instagram_username TEXT,
+    instagram_name TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE NULLS NOT DISTINCT (organization_id, page_id),
+    UNIQUE NULLS NOT DISTINCT (organization_id, instagram_id)
+);

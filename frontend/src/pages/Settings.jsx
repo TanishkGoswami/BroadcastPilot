@@ -3,7 +3,7 @@ import { X, Mail, Save, User, MapPin, ToggleLeft, ToggleRight, Smartphone, Key, 
 import { useAuth } from '../context/AuthProvider';
 
 export default function Settings() {
-  const { session } = useAuth();
+  const { session, userProfile } = useAuth();
   const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3001/api';
 
   // Email Settings State
@@ -16,6 +16,7 @@ export default function Settings() {
   
   const [isSaving, setIsSaving] = useState(false);
   const [isFacebookConnected, setIsFacebookConnected] = useState(false);
+  const [isInstagramConnected, setIsInstagramConnected] = useState(false);
 
   // WhatsApp State
   const [showWaModal, setShowWaModal] = useState(false);
@@ -32,7 +33,10 @@ export default function Settings() {
         });
         const data = await res.json();
         if (data.success && data.connections?.length > 0) {
-          setIsFacebookConnected(true);
+          const hasFb = data.connections.some(c => c.page_id);
+          const hasIg = data.connections.some(c => c.instagram_id);
+          if (hasFb) setIsFacebookConnected(true);
+          if (hasIg) setIsInstagramConnected(true);
         }
       } catch (err) {
         console.error('Failed to fetch meta connections in Settings:', err);
@@ -147,17 +151,10 @@ export default function Settings() {
       name: 'Instagram',
       description: 'Supercharge your Instagram marketing with messaging automation.',
       icon: <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 text-white flex items-center justify-center font-bold text-sm">Ig</div>,
-      status: 'connect',
+      status: isInstagramConnected ? 'connected' : 'connect',
       badge: null
     },
-    {
-      id: 'tiktok',
-      name: 'TikTok',
-      description: 'Elevate your marketing with TikTok\'s seamless automation.',
-      icon: <div className="w-8 h-8 bg-black text-white rounded-full flex items-center justify-center font-bold italic text-sm">d</div>,
-      status: 'connect',
-      badge: null
-    },
+
     {
       id: 'whatsapp',
       name: 'WhatsApp',
@@ -201,67 +198,65 @@ export default function Settings() {
   ];
 
   return (
-    <div className="flex h-full w-full">
-      {/* Settings Sidebar */}
-      <div className="w-64 border-r border-gray-200 bg-gray-50/50 flex flex-col">
-        <div className="p-6">
-          <h2 className="text-lg font-bold text-gray-900">Settings</h2>
+    <div className="flex flex-col h-full w-full bg-[#f4f5f7] font-sans">
+      
+      {/* Global Header */}
+      <div className="flex items-center justify-between px-8 py-6 bg-white border-b border-gray-100 shadow-sm z-10 shrink-0">
+        <div>
+          <h2 className="text-2xl font-bold text-[#1c1e21] tracking-tight">Settings</h2>
+          <p className="text-sm text-gray-500 mt-1">Connect channels and configure your workspace integrations.</p>
         </div>
-        <nav className="flex-1">
-          <div className="px-3 space-y-1">
-            <a href="#" className="block px-3 py-2 rounded-md text-sm font-medium text-gray-900 bg-white shadow-sm border border-gray-200">
-              Channels
-            </a>
-            <a href="#" className="block px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900">
-              General
-            </a>
-            <a href="#" className="block px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900">
-              Notifications
-            </a>
-            <a href="#" className="block px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900">
-              Billing
-            </a>
-          </div>
-        </nav>
       </div>
 
       {/* Main Settings Content */}
-      <div className="flex-1 overflow-auto p-8">
-        <div className="max-w-5xl mx-auto">
-          <h1 className="text-2xl font-bold text-gray-900 mb-8">Connect Channel</h1>
+      <div className="flex-1 overflow-auto p-8 animate-fade-in-up">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex items-center justify-between mb-8">
+            <h1 className="text-xl font-bold text-gray-900">Connected Channels</h1>
+            <div className="text-sm text-gray-500 bg-white px-4 py-1.5 rounded-full border border-gray-200 shadow-sm">
+              <span className="font-semibold text-gray-900">3</span> available integrations
+            </div>
+          </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {channels.map((channel) => (
-              <div key={channel.id} className="bg-white border border-gray-200 rounded-xl p-6 flex flex-col items-center text-center hover:shadow-md transition-shadow">
-                <div className="mb-4">
+              <div key={channel.id} className="bg-white border border-gray-100 rounded-2xl p-6 flex flex-col items-center text-center hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:-translate-y-1 transition-all duration-300 relative overflow-hidden group">
+                <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-[#0070d1]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <div className="mb-5 shadow-sm rounded-2xl bg-gray-50 p-3 border border-gray-100 group-hover:scale-110 transition-transform duration-300">
                   {channel.icon}
                 </div>
                 <div className="flex items-center gap-2 mb-2">
-                  <h3 className="text-base font-bold text-gray-900">{channel.name}</h3>
+                  <h3 className="text-lg font-bold text-gray-900">{channel.name}</h3>
                   {channel.badge && (
-                    <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase">
+                    <span className="bg-[#0070d1]/10 text-[#0070d1] text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
                       {channel.badge}
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-gray-500 mb-6 flex-1">
+                <p className="text-sm text-gray-500 mb-6 flex-1 px-2 leading-relaxed">
                   {channel.description}
                 </p>
                 
                 <button 
-                  className={`w-full py-2 px-4 rounded-md text-sm font-medium transition-colors border flex items-center justify-center gap-2 ${
+                  className={`w-full py-2.5 px-4 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
                     channel.status === 'connected'
-                      ? 'border-green-200 bg-green-50 text-green-700 cursor-default'
+                      ? 'border border-green-200 bg-green-50 text-green-700 cursor-default shadow-sm'
                       : channel.status === 'reconnect' 
-                        ? 'border-gray-300 text-gray-700 hover:bg-gray-50' 
-                        : 'border-gray-200 text-gray-900 hover:border-gray-300 shadow-sm'
+                        ? 'border border-gray-300 text-gray-700 hover:bg-gray-50 shadow-sm' 
+                        : 'bg-[#0070d1] text-white hover:bg-blue-700 shadow-md hover:shadow-lg'
                   }`}
                   onClick={() => {
-                    if (channel.status === 'connected' && channel.id !== 'whatsapp') return;
+                    if (channel.status === 'connected' && channel.id !== 'whatsapp' && channel.id !== 'facebook' && channel.id !== 'instagram') return;
                     
                     if (channel.id === 'whatsapp') {
                       if (waStatus === 'connected') setShowWaModal(true);
                       else handleConnectWa();
+                    } else if (channel.id === 'instagram') {
+                      const orgId = userProfile?.organization_id || session?.user?.user_metadata?.organization_id || 'test-org-123';
+                      window.location.href = `${API_URL}/auth/meta/instagram?organizationId=${orgId}`;
+                    } else if (channel.id === 'facebook') {
+                      const orgId = userProfile?.organization_id || session?.user?.user_metadata?.organization_id || 'test-org-123';
+                      window.location.href = `${API_URL}/auth/meta?organizationId=${orgId}`;
                     } else if (channel.id === 'email') {
                       setShowEmailModal(true);
                     } else if (channel.id === 'sms') {
@@ -377,6 +372,7 @@ export default function Settings() {
           </div>
         </div>
       )}
+      
       {/* WhatsApp Info / Connect Modal */}
       {showWaModal && (
         <div className="fixed inset-0 bg-gray-900/50 flex items-center justify-center z-50">
