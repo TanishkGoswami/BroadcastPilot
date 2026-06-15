@@ -37,6 +37,7 @@ export function ProtectedRoute({ children }) {
         return (
             <div className="flex flex-col h-screen items-center justify-center bg-gray-50 p-4">
                 <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 w-full max-w-md">
+                    <img src="/logo2.png" alt="BroadcastPilot Logo" className="h-16 mx-auto mb-4 object-contain" />
                     <h1 className="text-2xl font-bold text-center text-gray-900 mb-2">BroadcastPilot Local Dev</h1>
                     <p className="text-gray-500 text-center mb-6 text-sm">Log in to test locally</p>
                     
