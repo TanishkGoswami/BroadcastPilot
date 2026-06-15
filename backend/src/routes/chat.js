@@ -151,9 +151,9 @@ router.post('/sync-history', authMiddleware, async (req, res) => {
                 return res.status(400).json({ error: 'No Meta pages connected' });
             }
 
-            const IORedis = require('ioredis');
             const { Queue } = require('bullmq');
-            const connection = new IORedis(process.env.REDIS_URL || 'redis://127.0.0.1:6379', { maxRetriesPerRequest: null });
+            const { createRedisConnection } = require('../utils/redisConnection');
+            const connection = createRedisConnection();
             const metaSyncQueue = new Queue('metaSync', { connection });
 
             for (const conn of connections) {

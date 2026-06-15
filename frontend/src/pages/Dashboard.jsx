@@ -13,7 +13,7 @@ import { useAuth } from '../context/AuthProvider';
 
 
 export default function Dashboard() {
-  const { session, user } = useAuth();
+  const { session, userProfile } = useAuth();
   const navigate = useNavigate();
   
   const [leads, setLeads] = useState([]);
@@ -25,7 +25,7 @@ export default function Dashboard() {
     if (session?.access_token) {
       fetchAllData();
     }
-  }, [session]);
+  }, [session, userProfile]);
 
   const fetchAllData = async () => {
     setLoading(true);
@@ -44,11 +44,8 @@ export default function Dashboard() {
       setLeads(Array.isArray(leadsData) ? leadsData : []);
       setConversations(Array.isArray(convData) ? convData : []);
 
-      // Fetch campaigns requires orgId if we use the list endpoint, 
-      // but let's see if the user object has organization_id
-      const orgId = user?.user_metadata?.organization_id || user?.organization_id;
-      if (orgId) {
-        const campRes = await fetch(`${API_BASE}/api/campaigns/list/${orgId}`, { headers });
+      if (userProfile?.organization_id) {
+        const campRes = await fetch(`${API_BASE}/api/campaigns/list/${userProfile.organization_id}`, { headers });
         const campData = await campRes.json();
         if (campData.success && Array.isArray(campData.broadcasts)) {
           setCampaigns(campData.broadcasts);

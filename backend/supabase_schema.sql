@@ -1,14 +1,14 @@
 -- Run this in your Supabase SQL Editor
 
 -- 1. Create b_organizations table
-CREATE TABLE public.b_organizations (
+CREATE TABLE IF NOT EXISTS public.b_organizations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
 -- 2. Create b_organization_members table
-CREATE TABLE public.b_organization_members (
+CREATE TABLE IF NOT EXISTS public.b_organization_members (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID REFERENCES public.b_organizations(id) ON DELETE CASCADE,
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -17,20 +17,40 @@ CREATE TABLE public.b_organization_members (
     UNIQUE(organization_id, user_id)
 );
 
--- 3. Update b_leads table to add agent_id and make organization_id a UUID
--- Wait, if organization_id is currently TEXT (like 'test-org-123'), we may need to migrate it.
--- Assuming we're starting fresh since the user said "Data Migration: Since we are moving away from the hardcoded test-org-123 ID, your previous test leads will disappear".
--- If b_leads already exists, we alter it:
+CREATE INDEX IF NOT EXISTS idx_b_organization_members_user_id
+ON public.b_organization_members(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_b_organization_members_organization_id
+ON public.b_organization_members(organization_id);
+
+-- 3. Create b_agent_invites table for direct BroadcastPilot agent onboarding
+CREATE TABLE IF NOT EXISTS public.b_agent_invites (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID NOT NULL REFERENCES public.b_organizations(id) ON DELETE CASCADE,
+    email TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'agent' CHECK (role IN ('agent')),
+    token_hash TEXT NOT NULL UNIQUE,
+    invited_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    accepted_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    accepted_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_b_agent_invites_token_hash
+ON public.b_agent_invites(token_hash);
+
+CREATE INDEX IF NOT EXISTS idx_b_agent_invites_org_email
+ON public.b_agent_invites(organization_id, email);
+
+-- 3. Update b_leads table to add agent assignment support.
+-- BroadcastPilot writes workspace ids from b_organizations into existing b_* tables.
 
 ALTER TABLE public.b_leads
-ADD COLUMN agent_id UUID REFERENCES auth.users(id) ON DELETE SET NULL;
+ADD COLUMN IF NOT EXISTS agent_id UUID REFERENCES auth.users(id) ON DELETE SET NULL;
 
--- If organization_id is currently text, and we want to link it to the new UUID table:
--- (WARNING: This drops the existing organization_id column and recreates it. ALL existing leads will be orphaned/deleted if you drop the column. Only run if okay with wiping old leads)
-/*
-ALTER TABLE public.b_leads DROP COLUMN organization_id;
-ALTER TABLE public.b_leads ADD COLUMN organization_id UUID REFERENCES public.b_organizations(id) ON DELETE CASCADE;
-*/
+-- Keep existing organization_id TEXT columns in b_* data tables unless you run a planned migration.
+-- The app stores UUID values as strings there, which avoids destructive migration of existing leads.
 
 -- 4. Enable Row Level Security (RLS) - Optional but recommended
 -- ALTER TABLE public.b_organizations ENABLE ROW LEVEL SECURITY;

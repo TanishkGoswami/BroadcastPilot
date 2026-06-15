@@ -17,7 +17,7 @@ const CHANNELS = [
 
 export default function Campaigns() {
   const { session, userProfile } = useAuth();
-  const ORG_ID = userProfile?.organization_id || session?.user?.user_metadata?.organization_id || '847e859b-9bd7-4407-93c7-84e6b7a499f2';
+  const ORG_ID = userProfile?.organization_id;
   
   const [broadcasts, setBroadcasts] = React.useState([]);
   const [view, setView] = useState('list'); // 'list' or 'create'
@@ -29,13 +29,15 @@ export default function Campaigns() {
   const [mapping, setMapping] = useState({});
 
   React.useEffect(() => {
-    if (session) {
+    if (session && ORG_ID) {
       fetchBroadcasts();
       fetchMetaTemplates();
     }
-  }, [session]);
+  }, [session, ORG_ID]);
 
   const fetchBroadcasts = async () => {
+    if (!ORG_ID) return;
+
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL}/api/campaigns/list/${ORG_ID}`, {
         headers: { 'Authorization': `Bearer ${session?.access_token}` }
@@ -81,15 +83,22 @@ export default function Campaigns() {
   };
 
   const handleSend = async () => {
+    if (!ORG_ID || !session?.access_token) {
+      alert('Workspace is still loading. Please wait a moment and try again.');
+      return;
+    }
+
     setIsSending(true);
     
     try {
       if (selectedChannel === 'email') {
         const res = await fetch(`${import.meta.env.VITE_API_URL}/api/email-campaigns/broadcast`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`
+          },
           body: JSON.stringify({
-            organizationId: 'test-org-123',
             targetStatus: condition,
             subject: emailSubject,
             htmlBody: messageContent,
@@ -105,9 +114,11 @@ export default function Campaigns() {
       } else if (selectedChannel === 'sms') {
         const res = await fetch(`${import.meta.env.VITE_API_URL}/api/sms-campaigns/send`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`
+          },
           body: JSON.stringify({
-            organizationId: 'test-org-123',
             leadStatusFilter: condition,
             messageContent: messageContent,
             campaignName: `SMS Broadcast ${new Date().toLocaleDateString()}`

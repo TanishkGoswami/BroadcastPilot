@@ -1,23 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const { Queue } = require('bullmq');
-const Redis = require('ioredis');
 const supabase = require('../supabaseClient');
+const { createRedisConnection } = require('../utils/redisConnection');
 
-// Configure Redis connection
-const connection = new Redis({
-    host: '127.0.0.1',
-    port: 6379,
-    maxRetriesPerRequest: null
-});
-
-// Initialize SMS Queue
+const connection = createRedisConnection();
 const smsQueue = new Queue('smsQueue', { connection });
 
 // Trigger an SMS Campaign
 router.post('/send', async (req, res) => {
     try {
-        const { organizationId, campaignName, messageContent, leadStatusFilter } = req.body;
+        const { organization_id: organizationId, role } = req.user;
+        const { campaignName, messageContent, leadStatusFilter } = req.body;
+
+        if (role !== 'owner') {
+            return res.status(403).json({ error: 'Only workspace owners can send broadcasts' });
+        }
 
         if (!organizationId || !campaignName || !messageContent) {
             return res.status(400).json({ error: 'Missing required fields' });

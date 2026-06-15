@@ -1,14 +1,9 @@
 const { Worker } = require('bullmq');
-const Redis = require('ioredis');
 const twilio = require('twilio');
 const supabase = require('../supabaseClient');
+const { createRedisConnection } = require('../utils/redisConnection');
 
-// Configure Redis connection
-const connection = new Redis({
-    host: '127.0.0.1',
-    port: 6379,
-    maxRetriesPerRequest: null
-});
+const connection = createRedisConnection();
 
 // Process SMS jobs
 const smsWorker = new Worker('smsQueue', async job => {

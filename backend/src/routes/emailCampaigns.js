@@ -6,7 +6,12 @@ const { emailQueue } = require('../workers/emailWorker');
 // Trigger an email broadcast campaign
 router.post('/broadcast', async (req, res) => {
     try {
-        const { organizationId, targetStatus, subject, htmlBody, campaignName } = req.body;
+        const { organization_id: organizationId, role } = req.user;
+        const { targetStatus, subject, htmlBody, campaignName } = req.body;
+
+        if (role !== 'owner') {
+            return res.status(403).json({ error: 'Only workspace owners can send broadcasts' });
+        }
 
         if (!organizationId || !targetStatus || !subject || !htmlBody) {
             return res.status(400).json({ error: 'Missing required parameters' });

@@ -1,3 +1,47 @@
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- 0. BroadcastPilot Workspace Tables
+-- These tables isolate BroadcastPilot tenants from the main hub data.
+CREATE TABLE IF NOT EXISTS public.b_organizations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.b_organization_members (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    organization_id UUID NOT NULL REFERENCES public.b_organizations(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    role TEXT NOT NULL CHECK (role IN ('owner', 'agent')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(organization_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_b_organization_members_user_id
+ON public.b_organization_members(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_b_organization_members_organization_id
+ON public.b_organization_members(organization_id);
+
+CREATE TABLE IF NOT EXISTS public.b_agent_invites (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    organization_id UUID NOT NULL REFERENCES public.b_organizations(id) ON DELETE CASCADE,
+    email TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'agent' CHECK (role IN ('agent')),
+    token_hash TEXT NOT NULL UNIQUE,
+    invited_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    accepted_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    accepted_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_b_agent_invites_token_hash
+ON public.b_agent_invites(token_hash);
+
+CREATE INDEX IF NOT EXISTS idx_b_agent_invites_org_email
+ON public.b_agent_invites(organization_id, email);
+
 -- 1. WhatsApp Credentials Table
 CREATE TABLE IF NOT EXISTS public.b_whatsapp_credentials (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -22,6 +66,7 @@ CREATE TABLE IF NOT EXISTS public.b_leads (
     sheet_name TEXT NOT NULL,
     sheet_row_id INTEGER NOT NULL,
     ingestion_batch_id TEXT,
+    agent_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(organization_id, phone)

@@ -12,7 +12,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 // 1. Ingest via File Upload (CSV/XLSX)
 router.post('/upload', upload.single('file'), async (req, res) => {
     try {
-        const { organizationId } = req.body;
+        const organizationId = req.user?.organization_id;
         const file = req.file;
 
         if (!organizationId || !file) {
@@ -146,7 +146,7 @@ router.post('/headers', async (req, res) => {
 router.post('/ingest', async (req, res) => {
     try {
         const { spreadsheetId, mapping } = req.body;
-        const organizationId = req.user?.organization_id || req.body.organizationId;
+        const organizationId = req.user?.organization_id;
         
         if (!spreadsheetId || !organizationId || !mapping) {
             return res.status(400).json({ error: 'Missing required fields' });

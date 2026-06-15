@@ -1,0 +1,31 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: broadcastpilot-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  redis-insight:
+    image: redis/redisinsight:latest
+    container_name: broadcastpilot-redis-insight
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "5540:5540"
+    volumes:
+      - redis_insight_data:/data
+
+volumes:
+  redis_data:
+  redis_insight_data:

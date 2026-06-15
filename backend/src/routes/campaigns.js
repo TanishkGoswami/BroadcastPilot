@@ -6,7 +6,12 @@ const { broadcastQueue } = require('../workers/broadcastWorker');
 // Trigger a broadcast campaign
 router.post('/broadcast', async (req, res) => {
     try {
-        const { organizationId, targetStatus, templateName, templateLanguage, campaignName } = req.body;
+        const { organization_id: organizationId, role } = req.user;
+        const { targetStatus, templateName, templateLanguage, campaignName } = req.body;
+
+        if (role !== 'owner') {
+            return res.status(403).json({ error: 'Only workspace owners can send broadcasts' });
+        }
 
         if (!organizationId || !targetStatus || !templateName) {
             return res.status(400).json({ error: 'Missing required parameters' });
@@ -86,7 +91,11 @@ router.post('/broadcast', async (req, res) => {
 // Fetch all campaigns with stats for an organization
 router.get('/list/:organizationId', async (req, res) => {
     try {
-        const { organizationId } = req.params;
+        const organizationId = req.user.organization_id;
+
+        if (!organizationId) {
+            return res.status(400).json({ error: 'No organization linked to user.' });
+        }
 
         // 1. Fetch campaigns
         const { data: campaigns, error: campError } = await supabase

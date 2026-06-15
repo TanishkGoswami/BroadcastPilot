@@ -14,7 +14,11 @@ const META_REDIRECT_URI = `${PUBLIC_BASE_URL}/api/auth/meta/callback`;
 
 // 1. Redirect to Meta Login
 router.get('/', (req, res) => {
-    const organizationId = req.query.organizationId || 'test-org-123';
+    const organizationId = req.query.organizationId;
+
+    if (!organizationId) {
+        return res.status(400).send('Missing organizationId');
+    }
     
     // We pass organizationId in the state parameter so we know who logged in during the callback
     const state = Buffer.from(JSON.stringify({ organizationId })).toString('base64');
@@ -127,7 +131,11 @@ router.get('/callback', async (req, res) => {
 const IG_REDIRECT_URI = `${PUBLIC_BASE_URL}/api/auth/meta/instagram/callback`;
 
 router.get('/instagram', (req, res) => {
-    const organizationId = req.query.organizationId || 'test-org-123';
+    const organizationId = req.query.organizationId;
+
+    if (!organizationId) {
+        return res.status(400).send('Missing organizationId');
+    }
     const state = Buffer.from(JSON.stringify({ organizationId })).toString('base64');
     
     const scopes = 'instagram_business_basic,instagram_business_manage_messages';

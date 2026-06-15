@@ -3,7 +3,8 @@ const router = express.Router();
 const { google } = require('googleapis');
 const supabase = require('../supabaseClient');
 
-const authMiddleware = require('../middleware/authMiddleware');
+const authUserMiddleware = require('../middleware/authUserMiddleware');
+const { getBroadcastWorkspace, getOrCreateBroadcastWorkspace } = require('../services/broadcastWorkspace');
 
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
@@ -12,11 +13,30 @@ const oauth2Client = new google.auth.OAuth2(
 );
 
 // 0. Get Current User Profile
-router.get('/me', authMiddleware, (req, res) => {
-    res.json({
-        organization_id: req.user.organization_id,
-        role: req.user.role
-    });
+router.get('/me', authUserMiddleware, async (req, res) => {
+    try {
+        const shouldProvisionOwner = req.query.provision === 'owner';
+        const workspace = shouldProvisionOwner
+            ? await getOrCreateBroadcastWorkspace(req.user)
+            : await getBroadcastWorkspace(req.user);
+
+        if (!workspace) {
+            return res.status(403).json({
+                code: 'NO_BROADCAST_WORKSPACE',
+                error: 'This account does not have BroadcastPilot access yet.',
+            });
+        }
+
+        res.json({
+            id: req.user.id,
+            email: req.user.email,
+            organization_id: workspace.organization_id,
+            role: workspace.role
+        });
+    } catch (error) {
+        console.error('Profile bootstrap error:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // 1. Redirect to Google Consent Screen

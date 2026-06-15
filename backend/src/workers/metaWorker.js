@@ -1,13 +1,11 @@
 const { Worker, Queue } = require('bullmq');
-const IORedis = require('ioredis');
 const supabase = require('../supabaseClient');
 const { parsePhoneNumberFromString } = require('libphonenumber-js');
 const axios = require('axios');
 const { getNextAgentId } = require('../utils/assignment');
+const { createRedisConnection } = require('../utils/redisConnection');
 
-const connection = new IORedis(process.env.REDIS_URL || 'redis://127.0.0.1:6379', {
-  maxRetriesPerRequest: null
-});
+const connection = createRedisConnection();
 
 const metaSyncQueue = new Queue('metaSync', { connection });
 

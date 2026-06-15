@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthProvider';
-import { Shield, UserPlus, Users, X, Send } from 'lucide-react';
+import { AlertTriangle, Shield, UserPlus, Users, X, Send } from 'lucide-react';
 
 export default function TeamManagement() {
     const { userProfile, session } = useAuth();
@@ -13,8 +13,10 @@ export default function TeamManagement() {
     const [inviteEmail, setInviteEmail] = useState('');
     const [inviteLoading, setInviteLoading] = useState(false);
     const [inviteLink, setInviteLink] = useState('');
+    const [memberToRemove, setMemberToRemove] = useState(null);
+    const [removeLoading, setRemoveLoading] = useState(false);
 
-    const isOwner = userProfile?.role === 'owner' || session?.user?.user_metadata?.role === 'owner';
+    const isOwner = userProfile?.role === 'owner';
     
     const fetchTeam = async () => {
         try {
@@ -71,6 +73,31 @@ export default function TeamManagement() {
             alert(err.message);
         } finally {
             setInviteLoading(false);
+        }
+    };
+
+    const handleRemoveMember = async () => {
+        if (!memberToRemove) return;
+
+        setRemoveLoading(true);
+        try {
+            const pendingQuery = memberToRemove.pending ? '?pending=true' : '';
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/team/members/${memberToRemove.id}${pendingQuery}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${session?.access_token}` }
+            });
+
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to remove team member');
+            }
+
+            setMemberToRemove(null);
+            await fetchTeam();
+        } catch (err) {
+            alert(err.message);
+        } finally {
+            setRemoveLoading(false);
         }
     };
 
@@ -134,12 +161,18 @@ export default function TeamManagement() {
                                     </div>
                                     <div>
                                         <p className="font-bold font-display text-ink">{member.auth_users?.email || 'Pending Invite...'}</p>
-                                        <p className="text-sm text-charcoal capitalize">{member.role}</p>
+                                        <p className="text-sm text-charcoal capitalize">
+                                            {member.pending ? 'Pending invite' : member.role}
+                                        </p>
                                     </div>
                                 </div>
                                 {member.role !== 'owner' && (
-                                    <button className="text-red-500 hover:text-red-700 text-sm font-bold px-3 py-1.5 rounded-md hover:bg-red-50 transition-colors">
-                                        Remove
+                                    <button
+                                        type="button"
+                                        onClick={() => setMemberToRemove(member)}
+                                        className="text-red-500 hover:text-red-700 text-sm font-bold px-3 py-1.5 rounded-md hover:bg-red-50 transition-colors"
+                                    >
+                                        {member.pending ? 'Cancel Invite' : 'Remove'}
                                     </button>
                                 )}
                             </div>
@@ -174,7 +207,7 @@ export default function TeamManagement() {
                             <div className="p-6 space-y-4">
                                 <div className="bg-surface-bone text-ink p-4 rounded-[12px] text-sm border border-hairline">
                                     <p className="font-bold mb-1">Agent successfully invited!</p>
-                                    <p className="text-charcoal">Share this secure link with your agent so they can set their password and log in.</p>
+                                    <p className="text-charcoal">Share this secure BroadcastPilot link with your agent. They can sign in or create a hub account, then the invite will add them as an agent automatically.</p>
                                 </div>
                                 <div className="flex gap-2">
                                     <input 
@@ -216,7 +249,7 @@ export default function TeamManagement() {
                                         disabled={inviteLoading}
                                     />
                                     <p className="text-xs text-charcoal mt-2">
-                                        You will receive a secure sign-up link to share with them.
+                                        They will use this secure link to join BroadcastPilot directly as an agent.
                                     </p>
                                 </div>
                                 
@@ -244,6 +277,44 @@ export default function TeamManagement() {
                                 </div>
                             </form>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {memberToRemove && (
+                <div className="fixed inset-0 bg-ink/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-surface-card rounded-[16px] shadow-2xl w-full max-w-md overflow-hidden border border-hairline">
+                        <div className="p-6 text-center">
+                            <div className="w-14 h-14 rounded-full bg-red-50 border border-red-100 flex items-center justify-center mx-auto mb-5">
+                                <AlertTriangle size={26} className="text-red-600" />
+                            </div>
+                            <h3 className="text-2xl font-bold font-display text-ink mb-2">
+                                {memberToRemove.pending ? 'Cancel this invite?' : 'Remove this agent?'}
+                            </h3>
+                            <p className="text-sm text-charcoal leading-relaxed">
+                                {memberToRemove.pending
+                                    ? `The invite for ${memberToRemove.auth_users?.email || 'this email'} will stop working immediately.`
+                                    : `${memberToRemove.auth_users?.email || 'This agent'} will lose BroadcastPilot access. Any assigned contacts will be unassigned.`}
+                            </p>
+                        </div>
+                        <div className="p-5 border-t border-hairline bg-canvas flex gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setMemberToRemove(null)}
+                                disabled={removeLoading}
+                                className="button-outline flex-1 justify-center"
+                            >
+                                Keep
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleRemoveMember}
+                                disabled={removeLoading}
+                                className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-red-600 px-6 text-base font-bold text-white transition-colors hover:bg-red-700 disabled:opacity-50 flex-1"
+                            >
+                                {removeLoading ? 'Removing...' : memberToRemove.pending ? 'Cancel Invite' : 'Remove Agent'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

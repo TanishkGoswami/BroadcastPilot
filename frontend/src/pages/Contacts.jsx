@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthProvider';
 
 export default function Contacts() {
   const { session, userProfile } = useAuth();
-  const ORG_ID = userProfile?.organization_id || session?.user?.user_metadata?.organization_id;
+  const ORG_ID = userProfile?.organization_id;
   
   const [leads, setLeads] = useState([]);
   const [team, setTeam] = useState([]);
@@ -13,7 +13,7 @@ export default function Contacts() {
   const [initialLoad, setInitialLoad] = useState(true);
   const [syncing, setSyncing] = useState(false);
   
-  const isOwner = userProfile?.role === 'owner' || session?.user?.user_metadata?.role === 'owner';
+  const isOwner = userProfile?.role === 'owner';
   
   const [showImportModal, setShowImportModal] = useState(false);
   const [uploadMode, setUploadMode] = useState('file'); // 'file' or 'sheet'

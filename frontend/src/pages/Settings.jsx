@@ -4,6 +4,8 @@ import { useAuth } from '../context/AuthProvider';
 
 export default function Settings() {
   const { session, userProfile } = useAuth();
+  const organizationId = userProfile?.organization_id;
+  const authHeaders = session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {};
   
   // Email Settings State
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -65,13 +67,17 @@ export default function Settings() {
   }, [session]);
 
   const handleSaveContactInfo = async () => {
+    if (!organizationId || !session?.access_token) {
+      alert('Workspace is still loading. Please wait a moment and try again.');
+      return;
+    }
+
     setIsSaving(true);
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL}/api/settings/email`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({
-          organizationId: 'test-org-123',
           ...contactInfo
         })
       });
@@ -86,15 +92,19 @@ export default function Settings() {
   };
 
   const handleSaveSmsInfo = async () => {
+    if (!organizationId || !session?.access_token) {
+      alert('Workspace is still loading. Please wait a moment and try again.');
+      return;
+    }
+
     setIsSaving(true);
     try {
       const mockAssignedNumber = '+18166536732';
       
       const res = await fetch(`${import.meta.env.VITE_API_URL}/api/settings/sms`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({
-          organizationId: 'test-org-123',
           accountSid: 'MASTER_ACCOUNT_SID', // To be replaced by backend .env logic later
           authToken: 'MASTER_AUTH_TOKEN', 
           fromNumber: mockAssignedNumber
@@ -251,11 +261,11 @@ export default function Settings() {
                       if (waStatus === 'connected') setShowWaModal(true);
                       else handleConnectWa();
                     } else if (channel.id === 'instagram') {
-                      const orgId = userProfile?.organization_id || session?.user?.user_metadata?.organization_id || 'test-org-123';
-                      window.location.href = `${import.meta.env.VITE_API_URL}/api/auth/meta/instagram?organizationId=${orgId}`;
+                      if (!organizationId) return alert('Workspace is still loading. Please wait a moment and try again.');
+                      window.location.href = `${import.meta.env.VITE_API_URL}/api/auth/meta/instagram?organizationId=${organizationId}`;
                     } else if (channel.id === 'facebook') {
-                      const orgId = userProfile?.organization_id || session?.user?.user_metadata?.organization_id || 'test-org-123';
-                      window.location.href = `${import.meta.env.VITE_API_URL}/api/auth/meta?organizationId=${orgId}`;
+                      if (!organizationId) return alert('Workspace is still loading. Please wait a moment and try again.');
+                      window.location.href = `${import.meta.env.VITE_API_URL}/api/auth/meta?organizationId=${organizationId}`;
                     } else if (channel.id === 'email') {
                       setShowEmailModal(true);
                     } else if (channel.id === 'sms') {

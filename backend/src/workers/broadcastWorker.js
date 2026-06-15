@@ -1,18 +1,14 @@
 const { Queue, Worker } = require('bullmq');
 const axios = require('axios');
 const supabase = require('../supabaseClient');
-const IORedis = require('ioredis');
 const { 
     normalizeTemplateHeaderMedia, 
     resolveTemplateButtonUrl, 
     getMetaSendErrorMessage 
 } = require('../utils/broadcastUtils');
+const { createRedisConnection } = require('../utils/redisConnection');
 
-// Ensure redis is running locally or provide a connection string
-const redisConnection = new IORedis({
-    host: '127.0.0.1',
-    port: 6379,
-    maxRetriesPerRequest: null, // Required by BullMQ
+const redisConnection = createRedisConnection({
     retryStrategy: (times) => {
         // Prevent infinite fast retries that spam the console
         return Math.min(times * 2000, 10000); 

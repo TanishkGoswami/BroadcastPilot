@@ -1,11 +1,9 @@
 const { Worker, Queue } = require('bullmq');
-const IORedis = require('ioredis');
 const nodemailer = require('nodemailer');
 const supabase = require('../supabaseClient');
+const { createRedisConnection } = require('../utils/redisConnection');
 
-const connection = new IORedis(process.env.REDIS_URL || 'redis://127.0.0.1:6379', {
-  maxRetriesPerRequest: null
-});
+const connection = createRedisConnection();
 
 const emailQueue = new Queue('emailBroadcasts', { connection });
 

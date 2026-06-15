@@ -5,7 +5,12 @@ const supabase = require('../supabaseClient');
 // Save or Update Client Email Settings (Contact Info)
 router.post('/email', async (req, res) => {
     try {
-        const { organizationId, senderName, contactAddress, brandingEnabled } = req.body;
+        const { organization_id: organizationId, role } = req.user;
+        const { senderName, contactAddress, brandingEnabled } = req.body;
+
+        if (role !== 'owner') {
+            return res.status(403).json({ error: 'Only workspace owners can update channel settings' });
+        }
 
         if (!organizationId || !senderName || !contactAddress) {
             return res.status(400).json({ error: 'Missing required contact information' });
@@ -42,7 +47,12 @@ router.post('/email', async (req, res) => {
 // Save Twilio SMS Credentials
 router.post('/sms', async (req, res) => {
     try {
-        const { organizationId, accountSid, authToken, fromNumber } = req.body;
+        const { organization_id: organizationId, role } = req.user;
+        const { accountSid, authToken, fromNumber } = req.body;
+
+        if (role !== 'owner') {
+            return res.status(403).json({ error: 'Only workspace owners can update channel settings' });
+        }
 
         if (!organizationId || !accountSid || !authToken || !fromNumber) {
             return res.status(400).json({ error: 'Missing required Twilio credentials' });

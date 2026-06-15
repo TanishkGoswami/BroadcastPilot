@@ -6,6 +6,7 @@ import Campaigns from './pages/Campaigns';
 import Inbox from './pages/Inbox';
 import Settings from './pages/Settings';
 import TeamManagement from './pages/TeamManagement';
+import AcceptInvite from './pages/AcceptInvite';
 import { AuthProvider, useAuth } from './context/AuthProvider';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { 
@@ -21,7 +22,7 @@ import {
 function Sidebar() {
   const location = useLocation();
   const { user, userProfile, signOut } = useAuth();
-  const isOwner = userProfile?.role === 'owner' || user?.user_metadata?.role === 'owner' || !userProfile?.role;
+  const isOwner = userProfile?.role === 'owner';
   const [isLogoutDialogOpen, setIsLogoutDialogOpen] = React.useState(false);
 
   const getLinkClass = (path) => {
@@ -168,6 +169,7 @@ function App() {
                 <Route path="/inbox" element={<Inbox />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/team" element={<TeamManagement />} />
+                <Route path="/accept-invite" element={<AcceptInvite />} />
               </Routes>
             </div>
           </div>

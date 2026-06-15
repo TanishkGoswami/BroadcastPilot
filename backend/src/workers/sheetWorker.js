@@ -1,12 +1,10 @@
 const { Worker, Queue } = require('bullmq');
-const IORedis = require('ioredis');
 const supabase = require('../supabaseClient');
 const xlsx = require('xlsx');
 const { parsePhoneNumberFromString } = require('libphonenumber-js');
+const { createRedisConnection } = require('../utils/redisConnection');
 
-const connection = new IORedis(process.env.REDIS_URL || 'redis://127.0.0.1:6379', {
-  maxRetriesPerRequest: null
-});
+const connection = createRedisConnection();
 
 const sheetSyncQueue = new Queue('sheetSync', { connection });
 
