@@ -102,22 +102,6 @@ export default function Inbox() {
     }
   };
 
-  useEffect(() => {
-    if (session?.access_token) {
-      fetchConversations();
-    }
-  }, [session]);
-
-  useEffect(() => {
-    if (selectedConversation && session?.access_token) {
-      fetchMessages(selectedConversation.id);
-    }
-  }, [selectedConversation, session]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
   const fetchConversations = async () => {
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL}/api/chat/conversations`, {
@@ -148,6 +132,22 @@ export default function Inbox() {
       if (showLoading) setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (session?.access_token) {
+      fetchConversations();
+    }
+  }, [session]);
+
+  useEffect(() => {
+    if (selectedConversation && session?.access_token) {
+      fetchMessages(selectedConversation.id);
+    }
+  }, [selectedConversation, session]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   useEffect(() => {
     // Setup Supabase Realtime for instant LiveChat updates
@@ -185,9 +185,9 @@ export default function Inbox() {
 
   const getChannelIcon = (channel) => {
     switch (channel) {
-      case 'whatsapp': return <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-white flex items-center justify-center z-10"><span className="text-[8px] font-bold text-white">Wa</span></div>;
-      case 'instagram': return <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 rounded-full border-2 border-white flex items-center justify-center z-10"><span className="text-[8px] font-bold text-white">Ig</span></div>;
-      case 'messenger': return <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-blue-500 rounded-full border-2 border-white flex items-center justify-center z-10"><MessageSquare size={10} className="text-white fill-white" /></div>;
+      case 'whatsapp': return <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp" className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-white z-10 bg-white" />;
+      case 'instagram': return <img src="https://upload.wikimedia.org/wikipedia/commons/e/e7/Instagram_logo_2016.svg" alt="Instagram" className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-white z-10 bg-white" />;
+      case 'messenger': return <img src="https://upload.wikimedia.org/wikipedia/commons/b/be/Facebook_Messenger_logo_2020.svg" alt="Messenger" className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-white z-10 bg-white" />;
       default: return null;
     }
   };
@@ -203,32 +203,32 @@ export default function Inbox() {
   });
 
   return (
-    <div className="flex flex-col h-full w-full bg-[#f4f5f7] overflow-hidden font-sans">
+    <div className="flex flex-col h-full w-full bg-transparent overflow-hidden font-sans">
       
       {/* Global Header */}
-      <div className="flex items-center justify-between px-8 py-6 bg-white border-b border-gray-100 shadow-sm z-10 shrink-0">
+      <div className="flex items-center justify-between px-8 py-8 border-b border-hairline z-10 shrink-0">
         <div>
-          <h2 className="text-2xl font-bold text-[#1c1e21] tracking-tight">Inbox</h2>
-          <p className="text-sm text-gray-500 mt-1">Respond to messages and manage your conversations.</p>
+          <h2 className="text-5xl font-bold font-display text-ink leading-none -tracking-[1.8px]">Inbox</h2>
+          <p className="text-base text-charcoal mt-3">Respond to messages and manage your conversations.</p>
         </div>
       </div>
 
       {/* Main Omnichat Container */}
-      <div className="flex-1 bg-white m-8 rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col animate-fade-in-up">
+      <div className="flex-1 bg-surface-card mx-8 mb-8 mt-2 rounded-[16px] border border-hairline overflow-hidden flex flex-col animate-fade-in-up">
         
         {/* Top Tab Bar */}
-        <div className="flex items-center border-b border-gray-100 px-2 overflow-x-auto shrink-0 hide-scrollbar bg-gray-50/40 backdrop-blur-sm">
+        <div className="flex items-center border-b border-hairline px-2 overflow-x-auto shrink-0 hide-scrollbar bg-canvas">
           {TABS.map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`px-5 py-3.5 text-sm font-semibold whitespace-nowrap transition-all relative ${
-                activeTab === tab ? 'text-[#0070d1]' : 'text-gray-500 hover:text-gray-800'
+                activeTab === tab ? 'text-primary' : 'text-charcoal hover:text-ink'
               }`}
             >
               {tab}
               {activeTab === tab && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0070d1] rounded-t-full shadow-[0_-2px_4px_rgba(0,112,209,0.2)]" />
+                <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-primary rounded-t-full" />
               )}
             </button>
           ))}
@@ -236,16 +236,16 @@ export default function Inbox() {
 
         <div className="flex flex-1 overflow-hidden">
           {/* Left Column: Chat List */}
-          <div className="w-[320px] lg:w-[380px] border-r border-gray-200 flex flex-col bg-white shrink-0">
+          <div className="w-[320px] lg:w-[380px] border-r border-hairline flex flex-col bg-surface-card shrink-0">
             
             {/* Search and Manage Row */}
-            <div className="p-4 border-b border-gray-100 flex gap-2 items-center">
+            <div className="p-4 border-b border-hairline flex gap-2 items-center">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-mute" size={16} />
                 <input 
                   type="text" 
                   placeholder="Search" 
-                  className="w-full pl-9 pr-4 py-1.5 bg-gray-100 border-transparent rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:bg-white focus:border-blue-300 transition-all"
+                  className="w-full pl-9 pr-4 py-1.5 bg-canvas border border-transparent rounded-full text-sm text-ink focus:outline-none focus:border-hairline-strong transition-all"
                 />
               </div>
 
@@ -253,7 +253,7 @@ export default function Inbox() {
                 <button 
                   onClick={handleSyncHistory}
                   disabled={isSyncing}
-                  className="flex items-center gap-1.5 px-3 py-1.5 border border-blue-200 bg-blue-50 text-blue-700 rounded-md text-sm font-medium hover:bg-blue-100 transition-colors"
+                  className="button-ghost border border-hairline hover:bg-surface-bone text-primary"
                   title="Sync historical chats from the last 30 days"
                 >
                   <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
@@ -261,35 +261,31 @@ export default function Inbox() {
                 </button>
               )}
 
-              <button className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+              <button className="button-ghost border border-hairline hover:bg-surface-bone text-ink">
                 <SlidersHorizontal size={14} />
-                Manage
               </button>
             </div>
 
             {/* Sub-tabs Row */}
-            <div className="flex items-center px-4 py-2 border-b border-gray-100">
+            <div className="flex items-center px-4 py-2 border-b border-hairline">
               <div className="flex items-center gap-4 flex-1">
                 {SUBTABS.map(subtab => (
                   <button
                     key={subtab}
                     onClick={() => setActiveSubTab(subtab)}
-                    className={`text-[13px] font-medium pb-1 relative ${activeSubTab === subtab ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                    className={`text-[13px] font-medium pb-1 relative ${activeSubTab === subtab ? 'text-ink border-b-2 border-ink' : 'text-charcoal hover:text-ink'}`}
                   >
                     {subtab}
                   </button>
                 ))}
               </div>
-              <button className="text-gray-400 hover:text-gray-600">
-                <SlidersHorizontal size={14} />
-              </button>
             </div>
 
             {/* Conversations List */}
             <div className="flex-1 overflow-y-auto">
               {filteredConversations.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-                  <p className="text-gray-500 text-sm">No messages found in this view.</p>
+                <div className="flex flex-col items-center justify-center h-full p-8 text-center bg-canvas">
+                  <p className="text-charcoal text-sm">No messages found in this view.</p>
                 </div>
               ) : (
                 filteredConversations.map(conv => {
@@ -299,11 +295,11 @@ export default function Inbox() {
                       key={conv.id}
                       onClick={() => setSelectedConversation(conv)}
                       className={`flex items-start gap-3 p-4 cursor-pointer border-l-4 transition-colors ${
-                        isSelected ? 'border-blue-600 bg-gray-50' : 'border-transparent hover:bg-gray-50'
+                        isSelected ? 'border-primary bg-surface-bone' : 'border-transparent hover:bg-surface-bone'
                       }`}
                     >
                       <div className="relative">
-                        <div className="h-12 w-12 rounded-full bg-gray-200 overflow-hidden flex items-center justify-center shrink-0">
+                        <div className="h-12 w-12 rounded-full bg-canvas border border-hairline overflow-hidden flex items-center justify-center shrink-0">
                           {/* Avatar */}
                           <img 
                             src={conv.contacts?.profile_pic || `https://ui-avatars.com/api/?name=${encodeURIComponent(getDisplayName(conv.contacts))}&background=random`} 
@@ -316,14 +312,14 @@ export default function Inbox() {
                       
                       <div className="flex-1 min-w-0 py-1">
                         <div className="flex justify-between items-center mb-0.5">
-                          <h3 className={`font-semibold text-sm truncate ${conv.unread_count > 0 ? 'text-gray-900' : 'text-gray-700'}`}>
+                          <h3 className={`font-semibold text-sm truncate ${conv.unread_count > 0 ? 'text-ink' : 'text-charcoal'}`}>
                             {getDisplayName(conv.contacts)}
                           </h3>
-                          <span className={`text-[11px] whitespace-nowrap ${conv.unread_count > 0 ? 'text-blue-600 font-bold' : 'text-gray-500'}`}>
+                          <span className={`text-[11px] whitespace-nowrap ${conv.unread_count > 0 ? 'text-primary font-bold' : 'text-mute'}`}>
                             {formatTime(conv.last_message_at)}
                           </span>
                         </div>
-                        <p className={`text-[13px] truncate ${conv.unread_count > 0 ? 'text-gray-900 font-medium' : 'text-gray-500'}`}>
+                        <p className={`text-[13px] truncate ${conv.unread_count > 0 ? 'text-ink font-medium' : 'text-charcoal'}`}>
                           {conv.channel === 'whatsapp' ? 'WhatsApp Message...' : 'You: Hey! Thanks for commenting...'}
                         </p>
                       </div>
@@ -336,12 +332,12 @@ export default function Inbox() {
 
           {/* Right Column: Chat Window */}
           {selectedConversation ? (
-            <div className="flex-1 flex flex-col bg-white">
+            <div className="flex-1 flex flex-col bg-surface-card">
               {/* Chat Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-hairline shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="relative">
-                    <div className="h-10 w-10 rounded-full bg-gray-200 overflow-hidden flex items-center justify-center shrink-0">
+                    <div className="h-10 w-10 rounded-full border border-hairline overflow-hidden flex items-center justify-center shrink-0 bg-canvas">
                       <img 
                         src={selectedConversation.contacts?.profile_pic || `https://ui-avatars.com/api/?name=${encodeURIComponent(getDisplayName(selectedConversation.contacts))}&background=random`} 
                         alt="avatar" 
@@ -351,10 +347,10 @@ export default function Inbox() {
                     {getChannelIcon(selectedConversation.channel)}
                   </div>
                   <div>
-                    <h3 className="font-bold text-gray-900 leading-tight flex items-center gap-2">
+                    <h3 className="font-bold font-display text-ink leading-tight flex items-center gap-2">
                       {getDisplayName(selectedConversation.contacts)}
                     </h3>
-                    <div className="text-[12px] text-gray-500 flex items-center gap-1 cursor-pointer hover:text-gray-700">
+                    <div className="text-[12px] text-charcoal flex items-center gap-1 cursor-pointer hover:text-ink">
                       Assign this conversation <ChevronDown size={12} />
                     </div>
                   </div>
@@ -365,27 +361,27 @@ export default function Inbox() {
               {/* Chat Messages */}
               <div className="flex-1 overflow-y-auto p-6 space-y-6">
                 {loading ? (
-                  <div className="flex justify-center text-sm text-gray-500">Loading messages...</div>
+                  <div className="flex justify-center text-sm text-charcoal">Loading messages...</div>
                 ) : messages.length === 0 ? (
-                  <div className="flex justify-center text-sm text-gray-500">No messages yet.</div>
+                  <div className="flex justify-center text-sm text-charcoal">No messages yet.</div>
                 ) : (
                   messages.map((msg, index) => {
                     const isInbound = msg.direction === 'inbound';
                     return (
                       <div key={msg.id || index} className="flex flex-col">
                         <div className="flex justify-center mb-3">
-                          <span className="text-[10px] text-gray-400">{formatTime(msg.created_at)}</span>
+                          <span className="text-[10px] text-mute">{formatTime(msg.created_at)}</span>
                         </div>
                         <div className={`flex items-end gap-2 ${isInbound ? 'flex-row' : 'flex-row-reverse'}`}>
                           {isInbound && (
-                            <div className="w-6 h-6 rounded-full overflow-hidden shrink-0 border border-gray-200">
+                            <div className="w-6 h-6 rounded-full overflow-hidden shrink-0 border border-hairline">
                                <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(getDisplayName(selectedConversation.contacts))}&background=random`} alt="avatar" />
                             </div>
                           )}
                           <div className={`max-w-[70%] px-4 py-2.5 text-[14px] leading-snug ${
                             isInbound 
-                              ? 'bg-gray-100/80 text-gray-900 rounded-2xl rounded-bl-sm border border-gray-200/50 shadow-sm' 
-                              : 'bg-gradient-to-br from-[#0070d1] to-blue-500 shadow-md text-white rounded-2xl rounded-br-sm'
+                              ? 'bg-surface-bone text-ink rounded-[16px] rounded-bl-sm border border-hairline' 
+                              : 'bg-primary text-white rounded-[16px] rounded-br-sm'
                           }`}>
                             <p className="whitespace-pre-wrap">{msg.content}</p>
                           </div>
@@ -398,21 +394,21 @@ export default function Inbox() {
               </div>
 
               {/* Chat Input */}
-              <div className="px-6 py-4 bg-white border-t border-gray-100 shrink-0">
-                <div className="flex items-center gap-2 border border-gray-200 rounded-xl bg-gray-50/50 focus-within:bg-white focus-within:border-[#0070d1] focus-within:ring-2 focus-within:ring-blue-100/50 transition-all shadow-sm pl-4 pr-2 py-2">
+              <div className="px-6 py-4 bg-surface-card border-t border-hairline shrink-0">
+                <div className="flex items-center gap-2 border border-hairline rounded-full bg-surface-bone focus-within:bg-canvas focus-within:border-hairline-strong transition-all pl-5 pr-2 py-2">
                   <textarea 
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="Type a message..."
-                    className="flex-1 resize-none outline-none text-sm text-gray-900 bg-transparent py-1.5 h-8 my-auto leading-relaxed hide-scrollbar"
+                    className="flex-1 resize-none outline-none text-sm text-ink bg-transparent py-1.5 h-8 my-auto leading-relaxed hide-scrollbar"
                     rows="1"
                     disabled={isSending}
                   />
                   <button 
                     onClick={handleSendMessage}
                     disabled={isSending || !newMessage.trim()}
-                    className="px-5 py-2 bg-[#0070d1] text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow active:scale-95 shrink-0"
+                    className="button-primary shrink-0 h-10 px-6 text-sm"
                   >
                     Send
                   </button>
@@ -421,11 +417,11 @@ export default function Inbox() {
 
             </div>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center bg-gray-50/30">
-              <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-sm border border-gray-100 mb-4 animate-fade-in-up">
-                <MessageSquare size={32} className="text-blue-200" />
+            <div className="flex-1 flex flex-col items-center justify-center bg-canvas">
+              <div className="w-20 h-20 bg-surface-card rounded-full flex items-center justify-center border border-hairline mb-4 animate-fade-in-up">
+                <MessageSquare size={32} className="text-mute" />
               </div>
-              <p className="text-gray-500 font-medium tracking-tight animate-fade-in-up" style={{ animationDelay: '100ms' }}>Select a conversation to view chat</p>
+              <p className="text-charcoal font-medium tracking-tight animate-fade-in-up" style={{ animationDelay: '100ms' }}>Select a conversation to view chat</p>
             </div>
           )}
         </div>

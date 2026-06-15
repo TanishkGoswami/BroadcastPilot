@@ -197,13 +197,13 @@ export default function Settings() {
   ];
 
   return (
-    <div className="flex flex-col h-full w-full bg-[#f4f5f7] font-sans">
+    <div className="flex flex-col h-full w-full bg-transparent font-sans">
       
       {/* Global Header */}
-      <div className="flex items-center justify-between px-8 py-6 bg-white border-b border-gray-100 shadow-sm z-10 shrink-0">
+      <div className="flex items-center justify-between px-8 py-8 border-b border-hairline z-10 shrink-0">
         <div>
-          <h2 className="text-2xl font-bold text-[#1c1e21] tracking-tight">Settings</h2>
-          <p className="text-sm text-gray-500 mt-1">Connect channels and configure your workspace integrations.</p>
+          <h2 className="text-5xl font-bold font-display text-ink leading-none -tracking-[1.8px]">Settings</h2>
+          <p className="text-base text-charcoal mt-3">Connect channels and configure your workspace integrations.</p>
         </div>
       </div>
 
@@ -211,38 +211,38 @@ export default function Settings() {
       <div className="flex-1 overflow-auto p-8 animate-fade-in-up">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center justify-between mb-8">
-            <h1 className="text-xl font-bold text-gray-900">Connected Channels</h1>
-            <div className="text-sm text-gray-500 bg-white px-4 py-1.5 rounded-full border border-gray-200 shadow-sm">
-              <span className="font-semibold text-gray-900">3</span> available integrations
+            <h1 className="text-2xl font-bold font-display text-ink">Connected Channels</h1>
+            <div className="text-sm text-charcoal bg-surface-card px-4 py-1.5 rounded-[12px] border border-hairline">
+              <span className="font-bold font-display text-ink">3</span> available integrations
             </div>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {channels.map((channel) => (
-              <div key={channel.id} className="bg-white border border-gray-100 rounded-2xl p-6 flex flex-col items-center text-center hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:-translate-y-1 transition-all duration-300 relative overflow-hidden group">
+              <div key={channel.id} className="bg-surface-card border border-hairline rounded-[16px] p-6 flex flex-col items-center text-center hover:border-hairline-strong transition-all duration-300 relative overflow-hidden group">
                 <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-[#0070d1]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <div className="mb-5 shadow-sm rounded-2xl bg-gray-50 p-3 border border-gray-100 group-hover:scale-110 transition-transform duration-300">
+                <div className="mb-5 rounded-[12px] bg-canvas p-3 border border-hairline group-hover:scale-110 transition-transform duration-300">
                   {channel.icon}
                 </div>
                 <div className="flex items-center gap-2 mb-2">
-                  <h3 className="text-lg font-bold text-gray-900">{channel.name}</h3>
+                  <h3 className="text-lg font-bold font-display text-ink">{channel.name}</h3>
                   {channel.badge && (
-                    <span className="bg-[#0070d1]/10 text-[#0070d1] text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    <span className="bg-surface-bone text-primary text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
                       {channel.badge}
                     </span>
                   )}
                 </div>
-                <p className="text-sm text-gray-500 mb-6 flex-1 px-2 leading-relaxed">
+                <p className="text-sm text-charcoal mb-6 flex-1 px-2 leading-relaxed">
                   {channel.description}
                 </p>
                 
                 <button 
-                  className={`w-full py-2.5 px-4 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
+                  className={`w-full ${
                     channel.status === 'connected'
-                      ? 'border border-green-200 bg-green-50 text-green-700 cursor-default shadow-sm'
+                      ? 'flex items-center justify-center gap-2 bg-surface-bone text-primary border border-hairline py-2 rounded-[8px] font-semibold text-sm cursor-default'
                       : channel.status === 'reconnect' 
-                        ? 'border border-gray-300 text-gray-700 hover:bg-gray-50 shadow-sm' 
-                        : 'bg-[#0070d1] text-white hover:bg-blue-700 shadow-md hover:shadow-lg'
+                        ? 'button-outline justify-center' 
+                        : 'button-primary justify-center'
                   }`}
                   onClick={() => {
                     if (channel.status === 'connected' && channel.id !== 'whatsapp' && channel.id !== 'facebook' && channel.id !== 'instagram') return;
@@ -276,57 +276,57 @@ export default function Settings() {
 
       {/* Email Contact Info Modal */}
       {showEmailModal && (
-        <div className="fixed inset-0 bg-gray-900/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl w-[500px] overflow-hidden">
-            <div className="flex items-center justify-between p-5 border-b border-gray-200">
-              <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <Mail className="text-purple-600" size={20} />
+        <div className="fixed inset-0 bg-ink/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-surface-card rounded-[16px] shadow-2xl w-full max-w-md overflow-hidden border border-hairline">
+            <div className="flex items-center justify-between p-5 border-b border-hairline bg-canvas">
+              <h2 className="text-2xl font-bold font-display text-ink flex items-center gap-2">
+                <Mail className="text-primary" size={24} />
                 Email Settings
               </h2>
-              <button onClick={() => setShowEmailModal(false)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => setShowEmailModal(false)} className="text-mute hover:text-ink">
                 <X size={20} />
               </button>
             </div>
             <div className="p-6 space-y-5">
-              <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 mb-2">
-                <p className="text-sm text-blue-800 font-medium">Emails will be sent from <span className="font-bold">noreply@broadcastpilot.com</span>.</p>
-                <p className="text-xs text-blue-600 mt-1">Customize how your brand appears to recipients below.</p>
+              <div className="bg-surface-bone border border-hairline rounded-[12px] p-4 mb-2">
+                <p className="text-sm text-ink font-bold">Emails will be sent from noreply@broadcastpilot.com.</p>
+                <p className="text-xs text-charcoal mt-1">Customize how your brand appears to recipients below.</p>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1">Sender Name</label>
+                <label className="block text-xs font-bold text-mute uppercase tracking-wide mb-1">Sender Name</label>
                 <div className="relative">
-                  <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input type="text" value={contactInfo.senderName} onChange={e => setContactInfo({...contactInfo, senderName: e.target.value})} className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all" placeholder="e.g. MetaBull Support" />
+                  <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-mute" />
+                  <input type="text" value={contactInfo.senderName} onChange={e => setContactInfo({...contactInfo, senderName: e.target.value})} className="text-input pl-9" placeholder="e.g. MetaBull Support" />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1">Contact Address</label>
-                <p className="text-[11px] text-gray-500 mb-2 leading-relaxed">This physical address will be included at the bottom of your emails to comply with anti-spam laws.</p>
+                <label className="block text-xs font-bold text-mute uppercase tracking-wide mb-1">Contact Address</label>
+                <p className="text-[11px] text-charcoal mb-2 leading-relaxed">This physical address will be included at the bottom of your emails to comply with anti-spam laws.</p>
                 <div className="relative">
-                  <MapPin size={16} className="absolute left-3 top-3 text-gray-400" />
-                  <textarea value={contactInfo.contactAddress} onChange={e => setContactInfo({...contactInfo, contactAddress: e.target.value})} className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all resize-none h-20" placeholder="123 Business Rd, Suite 100&#10;Tech City, CA 94000" />
+                  <MapPin size={16} className="absolute left-3 top-3 text-mute" />
+                  <textarea value={contactInfo.contactAddress} onChange={e => setContactInfo({...contactInfo, contactAddress: e.target.value})} className="text-input pl-9 resize-none h-20" placeholder="123 Business Rd, Suite 100&#10;Tech City, CA 94000" />
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+              <div className="flex items-center justify-between pt-2 border-t border-hairline">
                 <div>
-                  <label className="block text-sm font-bold text-gray-900">Show Branding</label>
-                  <p className="text-xs text-gray-500 mt-0.5">Include "Powered by BroadcastPilot" at the bottom of emails.</p>
+                  <label className="block text-sm font-bold text-ink">Show Branding</label>
+                  <p className="text-xs text-charcoal mt-0.5">Include "Powered by BroadcastPilot" at the bottom of emails.</p>
                 </div>
                 <button 
                   onClick={() => setContactInfo({...contactInfo, brandingEnabled: !contactInfo.brandingEnabled})}
-                  className="text-purple-600 hover:text-purple-700 transition-colors"
+                  className="text-primary hover:text-ink transition-colors"
                 >
-                  {contactInfo.brandingEnabled ? <ToggleRight size={36} /> : <ToggleLeft size={36} className="text-gray-400" />}
+                  {contactInfo.brandingEnabled ? <ToggleRight size={36} /> : <ToggleLeft size={36} className="text-mute" />}
                 </button>
               </div>
             </div>
             
-            <div className="p-5 border-t border-gray-200 bg-gray-50 flex justify-end gap-3">
-              <button onClick={() => setShowEmailModal(false)} className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors">Cancel</button>
-              <button onClick={handleSaveContactInfo} disabled={isSaving} className="flex items-center gap-2 px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md text-sm font-bold shadow-sm transition-colors disabled:opacity-50">
+            <div className="p-5 border-t border-hairline bg-surface-card flex justify-end gap-3">
+              <button onClick={() => setShowEmailModal(false)} className="button-outline border-transparent bg-transparent hover:border-hairline">Cancel</button>
+              <button onClick={handleSaveContactInfo} disabled={isSaving} className="button-primary">
                 {isSaving ? 'Saving...' : <><Save size={16} /> Save Settings</>}
               </button>
             </div>
@@ -336,35 +336,35 @@ export default function Settings() {
 
       {/* SMS Twilio Info Modal */}
       {showSmsModal && (
-        <div className="fixed inset-0 bg-gray-900/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl w-[500px] overflow-hidden">
-            <div className="flex items-center justify-between p-5 border-b border-gray-200">
-              <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <Smartphone className="text-emerald-600" size={20} />
+        <div className="fixed inset-0 bg-ink/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-surface-card rounded-[16px] shadow-2xl w-full max-w-md overflow-hidden border border-hairline">
+            <div className="flex items-center justify-between p-5 border-b border-hairline bg-canvas">
+              <h2 className="text-2xl font-bold font-display text-ink flex items-center gap-2">
+                <Smartphone className="text-primary" size={24} />
                 Twilio SMS Settings
               </h2>
-              <button onClick={() => setShowSmsModal(false)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => setShowSmsModal(false)} className="text-mute hover:text-ink">
                 <X size={20} />
               </button>
             </div>
             <div className="p-6 space-y-5">
-              <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-4 mb-2">
-                <p className="text-sm text-emerald-800 font-medium">Activate SMS Broadcasting for your account.</p>
-                <p className="text-xs text-emerald-600 mt-1">When you activate, our team will automatically assign a dedicated Twilio phone number to your business for sending messages.</p>
+              <div className="bg-surface-bone border border-hairline rounded-[12px] p-4 mb-2">
+                <p className="text-sm text-ink font-bold">Activate SMS Broadcasting for your account.</p>
+                <p className="text-xs text-charcoal mt-1">When you activate, our team will automatically assign a dedicated Twilio phone number to your business for sending messages.</p>
               </div>
 
-              <div className="flex items-center justify-center p-6 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50">
+              <div className="flex items-center justify-center p-6 border-2 border-dashed border-hairline rounded-[16px] bg-canvas">
                 <div className="text-center">
-                  <Smartphone className="mx-auto text-gray-400 mb-2" size={32} />
-                  <p className="text-sm font-medium text-gray-900">No technical setup required</p>
-                  <p className="text-xs text-gray-500 mt-1">We handle the Twilio infrastructure for you.</p>
+                  <Smartphone className="mx-auto text-mute mb-2" size={32} />
+                  <p className="text-sm font-bold text-ink">No technical setup required</p>
+                  <p className="text-xs text-charcoal mt-1">We handle the Twilio infrastructure for you.</p>
                 </div>
               </div>
             </div>
             
-            <div className="p-5 border-t border-gray-200 bg-gray-50 flex justify-end gap-3">
-              <button onClick={() => setShowSmsModal(false)} className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors">Cancel</button>
-              <button onClick={handleSaveSmsInfo} disabled={isSaving} className="flex items-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-sm font-bold shadow-sm transition-colors disabled:opacity-50">
+            <div className="p-5 border-t border-hairline bg-surface-card flex justify-end gap-3">
+              <button onClick={() => setShowSmsModal(false)} className="button-outline border-transparent bg-transparent hover:border-hairline">Cancel</button>
+              <button onClick={handleSaveSmsInfo} disabled={isSaving} className="button-primary">
                 {isSaving ? 'Activating...' : <><Smartphone size={16} /> Activate SMS & Get Number</>}
               </button>
             </div>
@@ -374,14 +374,14 @@ export default function Settings() {
       
       {/* WhatsApp Info / Connect Modal */}
       {showWaModal && (
-        <div className="fixed inset-0 bg-gray-900/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl w-[500px] overflow-hidden">
-            <div className="flex items-center justify-between p-5 border-b border-gray-200">
-              <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <div className="w-6 h-6 bg-green-500 text-white rounded-full flex items-center justify-center font-bold text-xs">Wa</div>
-                WhatsApp Connection
+        <div className="fixed inset-0 bg-ink/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-surface-card rounded-[16px] shadow-2xl w-full max-w-md overflow-hidden border border-hairline">
+            <div className="flex items-center justify-between p-5 border-b border-hairline bg-canvas">
+              <h2 className="text-2xl font-bold font-display text-ink flex items-center gap-2">
+                <div className="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center font-bold text-sm">Wa</div>
+                WhatsApp
               </h2>
-              <button onClick={() => setShowWaModal(false)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => setShowWaModal(false)} className="text-mute hover:text-ink">
                 <X size={20} />
               </button>
             </div>
@@ -389,28 +389,28 @@ export default function Settings() {
             <div className="p-6 space-y-5 text-center">
               {waStatus === 'connecting' && (
                 <div className="py-8">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto"></div>
-                  <p className="mt-4 text-gray-600 font-medium">Generating secure QR code...</p>
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+                  <p className="mt-4 text-charcoal font-bold">Generating secure QR code...</p>
                 </div>
               )}
               
               {waStatus === 'qr_ready' && waQr && (
                 <div className="py-4">
-                  <p className="text-sm text-gray-700 font-medium mb-4">Open WhatsApp on your phone, tap Menu &gt; Linked Devices, and scan this code:</p>
-                  <div className="bg-white p-4 border border-gray-200 rounded-xl inline-block shadow-sm">
+                  <p className="text-sm text-ink font-bold mb-4">Open WhatsApp on your phone, tap Menu &gt; Linked Devices, and scan this code:</p>
+                  <div className="bg-white p-4 border border-hairline rounded-[16px] inline-block shadow-sm">
                     <img src={waQr} alt="WhatsApp QR Code" className="w-64 h-64" />
                   </div>
-                  <p className="text-xs text-gray-500 mt-4">This screen will automatically close when connected.</p>
+                  <p className="text-xs text-charcoal mt-4">This screen will automatically close when connected.</p>
                 </div>
               )}
               
               {waStatus === 'connected' && waAccount && (
                 <div className="py-6">
-                  <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <div className="w-16 h-16 bg-surface-bone text-primary border border-hairline rounded-full flex items-center justify-center mx-auto mb-4">
                     <Check size={32} />
                   </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-1">WhatsApp is Connected</h3>
-                  <p className="text-gray-600 font-medium">Number: +{waAccount.display_phone_number}</p>
+                  <h3 className="text-2xl font-bold font-display text-ink mb-1">WhatsApp is Connected</h3>
+                  <p className="text-charcoal font-bold">Number: +{waAccount.display_phone_number}</p>
                 </div>
               )}
               
@@ -422,13 +422,13 @@ export default function Settings() {
               )}
             </div>
             
-            <div className="p-5 border-t border-gray-200 bg-gray-50 flex justify-end gap-3">
-              <button onClick={() => setShowWaModal(false)} className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors">
+            <div className="p-5 border-t border-hairline bg-surface-card flex justify-end gap-3">
+              <button onClick={() => setShowWaModal(false)} className="button-outline border-transparent bg-transparent hover:border-hairline">
                 {waStatus === 'connected' ? 'Close' : 'Cancel'}
               </button>
               
               {waStatus === 'connected' && (
-                <button onClick={handleDisconnectWa} className="px-4 py-2 text-sm font-medium text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 rounded-md transition-colors">
+                <button onClick={handleDisconnectWa} className="button-outline border-red-200 text-red-600 bg-red-50 hover:bg-red-100">
                   Disconnect Account
                 </button>
               )}

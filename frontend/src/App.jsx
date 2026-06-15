@@ -22,47 +22,43 @@ function Sidebar() {
   const location = useLocation();
   const { user, userProfile, signOut } = useAuth();
   const isOwner = userProfile?.role === 'owner' || user?.user_metadata?.role === 'owner' || !userProfile?.role;
+  const [isLogoutDialogOpen, setIsLogoutDialogOpen] = React.useState(false);
 
   const getLinkClass = (path) => {
     const isActive = location.pathname === path;
-    return `flex items-center gap-3 px-4 py-3 text-sm font-semibold transition-all rounded-xl mx-3 mb-1 ${
+    return `flex items-center gap-3 px-4 py-2.5 text-sm font-bold transition-all rounded-[12px] mx-2 mb-1 ${
       isActive 
-        ? 'text-[#0070d1] bg-blue-50/80 shadow-sm' 
-        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+        ? 'text-primary bg-surface-card shadow-sm border border-hairline/50' 
+        : 'text-charcoal hover:text-ink hover:bg-surface-card/50 border border-transparent'
     }`;
   };
 
   return (
-    <div className="w-[260px] bg-white border-r border-gray-100 flex flex-col h-full shrink-0 z-20 shadow-[1px_0_10px_rgba(0,0,0,0.02)]">
+    <div className="w-[250px] bg-transparent flex flex-col h-full shrink-0 z-20">
       {/* Brand Header */}
-      <div className="h-[76px] flex items-center px-7 border-b border-gray-50">
-        <div className="w-8 h-8 bg-gradient-to-br from-[#0070d1] to-blue-400 rounded-lg flex items-center justify-center mr-3 shadow-md">
-          <MessageSquare size={18} className="text-white" />
-        </div>
-        <h1 className="text-xl font-bold text-gray-900 tracking-tight">
-          BroadcastPilot
-        </h1>
+      <div className="h-[80px] flex items-center px-4">
+        <img src="/logo3.png" alt="BroadcastPilot Logo" className="h-10 w-auto object-contain" />
       </div>
 
       {/* Account Switcher Mock */}
-      <div className="px-4 py-4">
-        <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
-          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
-            <span className="text-blue-600 font-semibold text-xs">
+      <div className="px-4 pb-4 border-b border-hairline/50">
+        <div className="flex items-center gap-3 p-2 rounded-[12px] hover:bg-surface-card cursor-pointer border border-transparent hover:border-hairline transition-all shadow-sm">
+          <div className="w-9 h-9 rounded-[10px] bg-primary flex items-center justify-center shrink-0">
+            <span className="text-white font-bold font-display text-sm">
               {user?.email ? user.email.substring(0, 2).toUpperCase() : 'BP'}
             </span>
           </div>
           <div className="flex flex-col flex-1 overflow-hidden">
-            <span className="text-sm font-medium text-gray-900 truncate">
+            <span className="text-[13px] font-bold text-ink truncate font-display">
               {user?.email || 'My Account'}
             </span>
-            <span className="text-xs text-white bg-green-600 rounded px-1.5 py-0.5 self-start mt-0.5">PRO</span>
+            <span className="text-[10px] text-primary font-bold tracking-wider uppercase mt-0.5">PRO Plan</span>
           </div>
         </div>
       </div>
 
       {/* Main Navigation */}
-      <nav className="flex-1 pt-6 overflow-y-auto">
+      <nav className="flex-1 pt-6 px-2 overflow-y-auto space-y-1">
         <Link to="/" className={getLinkClass('/')}>
           <LayoutDashboard size={18} />
           <span>Dashboard</span>
@@ -92,31 +88,64 @@ function Sidebar() {
       </nav>
 
       {/* Bottom Section */}
-      <div className="p-4 border-t border-gray-100/50 flex flex-col gap-1">
+      <div className="p-4 flex flex-col gap-1 px-2">
 
-        <div className="flex items-center gap-3 px-3 py-2 text-sm font-semibold text-gray-700 hover:text-[#0070d1] hover:bg-[#0070d1]/5 rounded-lg cursor-pointer transition-colors">
-          <HelpCircle size={18} />
+        <div className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-charcoal hover:text-ink hover:bg-surface-card hover:shadow-sm rounded-[12px] cursor-pointer transition-all mx-2">
+          <HelpCircle size={18} className="text-mute" />
           <span>Help</span>
         </div>
 
         <div 
-          onClick={signOut}
-          className="flex items-center gap-3 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 rounded-lg cursor-pointer transition-colors"
+          onClick={() => setIsLogoutDialogOpen(true)}
+          className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-primary hover:bg-surface-card hover:shadow-sm rounded-[12px] cursor-pointer transition-all mx-2"
         >
           <LogOut size={18} />
           <span>Logout</span>
         </div>
         
-        <div className="mt-3 bg-white/60 border border-gray-200/50 rounded-xl p-3 shadow-sm backdrop-blur-sm">
-          <div className="flex items-center gap-2 text-xs font-semibold text-gray-600 mb-2">
-            <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
-            <span>Contacts: 0/1000</span>
+        <div className="mt-4 bg-surface-card rounded-[16px] p-4 border border-hairline mx-2 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold text-mute uppercase tracking-wider">Contacts</span>
+            <span className="text-xs font-bold text-ink font-display">0 / 1000</span>
           </div>
-          <button className="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white text-xs font-bold py-2 px-4 rounded-lg shadow-sm hover:shadow transition-all">
+          <div className="w-full h-1.5 bg-surface-bone rounded-full mb-4 overflow-hidden">
+            <div className="h-full bg-primary w-[5%] rounded-full"></div>
+          </div>
+          <button className="button-outline w-full text-xs py-2 h-auto hover:bg-canvas">
             Upgrade Plan
           </button>
         </div>
       </div>
+
+      {/* Logout Confirmation Dialog */}
+      {isLogoutDialogOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#000000]/40 backdrop-blur-sm animate-fade-in-up">
+          <div className="bg-surface-card w-[380px] rounded-[24px] p-8 shadow-xl border border-hairline relative z-[101] text-center flex flex-col items-center">
+            <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mb-5 border border-red-100">
+              <LogOut size={24} className="text-red-600 ml-1" />
+            </div>
+            <h2 className="text-2xl font-bold font-display text-ink mb-2">Log out</h2>
+            <p className="text-charcoal mb-8 text-sm leading-relaxed">Are you sure you want to log out of your account?</p>
+            <div className="flex gap-3 w-full">
+              <button 
+                onClick={() => setIsLogoutDialogOpen(false)}
+                className="button-outline flex-1"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => {
+                  setIsLogoutDialogOpen(false);
+                  signOut();
+                }}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-red-600 px-6 text-base font-bold text-white transition-colors hover:bg-red-700 flex-1"
+              >
+                Log out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -126,12 +155,12 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <ProtectedRoute>
-          <div className="flex h-screen w-full bg-[#f4f5f7] overflow-hidden font-sans">
+          <div className="flex h-screen w-full bg-surface-bone overflow-hidden font-sans p-3">
             {/* Sidebar */}
             <Sidebar />
 
-            {/* Main Content */}
-            <div className="flex-1 flex flex-col h-full overflow-hidden">
+            {/* Main Content Island */}
+            <div className="flex-1 flex flex-col h-full overflow-hidden bg-surface-card rounded-[24px] shadow-sm border border-hairline relative">
               <Routes>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/contacts" element={<Contacts />} />
