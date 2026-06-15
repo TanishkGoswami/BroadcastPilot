@@ -7,11 +7,16 @@ const connection = createRedisConnection();
 
 const emailQueue = new Queue('emailBroadcasts', { connection });
 
-// Get dynamic transporter if settings provided, else global
+function isValidEmail(value) {
+    return typeof value === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+function getDomain(email) {
+    return String(email || '').split('@')[1]?.toLowerCase() || '';
+}
+
 function getTransporter(smtpSettings) {
-    // smtpSettings.host is being used as a hack for brandingEnabled in settings.js
-    // Only use dynamic transporter if it's a real host (not 'true' or 'false')
-    if (smtpSettings && smtpSettings.host && smtpSettings.host !== 'true' && smtpSettings.host !== 'false') {
+    if (smtpSettings?.host) {
         return nodemailer.createTransport({
             host: smtpSettings.host,
             port: smtpSettings.port || 587,
@@ -38,43 +43,34 @@ const worker = new Worker('emailBroadcasts', async job => {
     try {
         console.log(`Sending email to ${email}...`);
         
-        const globalFromAddress = process.env.SMTP_FROM || 'noreply@broadcastpilot.com';
+        const globalFromAddress = (process.env.SMTP_FROM || 'noreply@broadcastpilot.com').trim();
         
-        // If they provided a real custom SMTP host, use their fromEmail. 
-        // Otherwise, use the platform's verified globalFromAddress.
-        const isCustomSmtp = smtpSettings && smtpSettings.host && smtpSettings.host !== 'true' && smtpSettings.host !== 'false';
+        const isCustomSmtp = Boolean(smtpSettings?.host);
         
-        const physicalSender = (isCustomSmtp && smtpSettings.fromEmail) 
-            ? smtpSettings.fromEmail.trim() 
-            : globalFromAddress.trim();
+        const requestedSenderEmail = isValidEmail(contactInfo.senderEmail)
+            ? contactInfo.senderEmail.trim().toLowerCase()
+            : null;
+        const canUseRequestedSender =
+            requestedSenderEmail &&
+            (isCustomSmtp || getDomain(requestedSenderEmail) === getDomain(globalFromAddress));
+
+        const physicalSender = canUseRequestedSender ? requestedSenderEmail : globalFromAddress;
             
         const senderString = contactInfo.senderName ? `"${contactInfo.senderName}" <${physicalSender}>` : physicalSender;
-        
-        // Set reply-to so responses go directly to the client's email address (if they entered a valid email)
-        const replyToAddress = (contactInfo.contactAddress && contactInfo.contactAddress.includes('@')) 
-            ? contactInfo.contactAddress.trim() 
+        const replyToAddress = requestedSenderEmail && requestedSenderEmail !== physicalSender
+            ? requestedSenderEmail
             : null;
 
         const baseUrl = process.env.PUBLIC_BASE_URL || 'http://localhost:3001';
         const unsubscribeLink = `${baseUrl}/api/emailCampaigns/unsubscribe/${leadId}`;
 
-        // Inject Contact Address, Unsubscribe Link, and Branding
         let finalHtmlBody = htmlBody;
         finalHtmlBody += `
             <br><br><hr style="border:0; border-top: 1px solid #eee; margin-top: 20px;">
-            <p style="font-size: 11px; color: #888; margin-top: 10px; white-space: pre-wrap;">${contactInfo.contactAddress}</p>
             <p style="font-size: 11px; margin-top: 5px;">
                 <a href="${unsubscribeLink}" style="color: #888; text-decoration: underline;">Unsubscribe</a> from these emails.
             </p>
         `;
-        
-        if (contactInfo.brandingEnabled) {
-            finalHtmlBody += `
-                <p style="font-size: 11px; color: #aaa; margin-top: 5px;">
-                    Powered by <a href="https://broadcastpilot.com" style="color: #0070d1; text-decoration: none;">BroadcastPilot</a>
-                </p>
-            `;
-        }
 
         const mailOptions = {
             from: senderString,
@@ -82,7 +78,7 @@ const worker = new Worker('emailBroadcasts', async job => {
             subject: subject,
             html: finalHtmlBody,
         };
-        
+
         if (replyToAddress) {
             mailOptions.replyTo = replyToAddress;
         }

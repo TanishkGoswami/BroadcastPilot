@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Mail, Save, User, MapPin, ToggleLeft, ToggleRight, Smartphone, Key, Hash, Check } from 'lucide-react';
+import { X, Mail, Save, User, Smartphone, Check } from 'lucide-react';
 import { useAuth } from '../context/AuthProvider';
 
 export default function Settings() {
@@ -9,7 +9,7 @@ export default function Settings() {
   
   // Email Settings State
   const [showEmailModal, setShowEmailModal] = useState(false);
-  const [contactInfo, setContactInfo] = useState({ senderName: '', contactAddress: '', brandingEnabled: true });
+  const [emailInfo, setEmailInfo] = useState({ senderName: '', senderEmail: '' });
   
   // SMS Settings State
   const [showSmsModal, setShowSmsModal] = useState(false);
@@ -18,6 +18,8 @@ export default function Settings() {
   const [isSaving, setIsSaving] = useState(false);
   const [isFacebookConnected, setIsFacebookConnected] = useState(false);
   const [isInstagramConnected, setIsInstagramConnected] = useState(false);
+  const [isEmailConnected, setIsEmailConnected] = useState(false);
+  const [isSmsConnected, setIsSmsConnected] = useState(false);
 
   // WhatsApp State
   const [showWaModal, setShowWaModal] = useState(false);
@@ -26,6 +28,30 @@ export default function Settings() {
   const [waAccount, setWaAccount] = useState(null);
 
   useEffect(() => {
+    const fetchSettingsStatus = async () => {
+      if (!session?.access_token) return;
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/settings/status`, {
+          headers: { 'Authorization': `Bearer ${session.access_token}` }
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          setIsEmailConnected(Boolean(data.email?.connected));
+          setIsSmsConnected(Boolean(data.sms?.connected));
+
+          if (data.email?.connected) {
+            setEmailInfo({
+              senderName: data.email.senderName || '',
+              senderEmail: data.email.senderEmail || '',
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch email/SMS settings status:', err);
+      }
+    };
+
     const fetchMetaConnections = async () => {
       if (!session?.access_token) return;
       try {
@@ -33,11 +59,10 @@ export default function Settings() {
           headers: { 'Authorization': `Bearer ${session.access_token}` }
         });
         const data = await res.json();
-        if (data.success && data.connections?.length > 0) {
-          const hasFb = data.connections.some(c => c.page_id);
-          const hasIg = data.connections.some(c => c.instagram_id);
-          if (hasFb) setIsFacebookConnected(true);
-          if (hasIg) setIsInstagramConnected(true);
+        if (data.success) {
+          const connections = data.connections || [];
+          setIsFacebookConnected(connections.some(c => c.page_id));
+          setIsInstagramConnected(connections.some(c => c.instagram_id));
         }
       } catch (err) {
         console.error('Failed to fetch meta connections in Settings:', err);
@@ -62,6 +87,7 @@ export default function Settings() {
       }
     };
 
+    fetchSettingsStatus();
     fetchMetaConnections();
     fetchWaStatus();
   }, [session]);
@@ -77,12 +103,11 @@ export default function Settings() {
       const res = await fetch(`${import.meta.env.VITE_API_URL}/api/settings/email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
-        body: JSON.stringify({
-          ...contactInfo
-        })
+        body: JSON.stringify(emailInfo)
       });
       if (!res.ok) throw new Error(await res.text());
-      alert('Contact information saved successfully!');
+      setIsEmailConnected(true);
+      alert('Email settings saved successfully!');
       setShowEmailModal(false);
     } catch (error) {
       alert('Failed to save settings: ' + error.message);
@@ -111,6 +136,7 @@ export default function Settings() {
         })
       });
       if (!res.ok) throw new Error(await res.text());
+      setIsSmsConnected(true);
       alert(`SMS Activated! Your assigned number is ${mockAssignedNumber}`);
       setShowSmsModal(false);
     } catch (error) {
@@ -185,7 +211,7 @@ export default function Settings() {
       name: 'SMS',
       description: 'Collect phone numbers and reengage your contacts via text.',
       icon: <div className="w-8 h-8 bg-emerald-500 text-white rounded-full flex items-center justify-center font-bold text-xs">SMS</div>,
-      status: 'connect',
+      status: isSmsConnected ? 'connected' : 'connect',
       badge: 'UPGRADE'
     },
     {
@@ -193,7 +219,7 @@ export default function Settings() {
       name: 'Email',
       description: 'Use Email marketing for automation and rich content campaigns.',
       icon: <div className="w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold text-sm">@</div>,
-      status: 'connect',
+      status: isEmailConnected ? 'connected' : 'connect',
       badge: 'UPGRADE'
     },
     {
@@ -255,7 +281,7 @@ export default function Settings() {
                         : 'button-primary justify-center'
                   }`}
                   onClick={() => {
-                    if (channel.status === 'connected' && channel.id !== 'whatsapp' && channel.id !== 'facebook' && channel.id !== 'instagram') return;
+                    if (channel.status === 'connected' && channel.id === 'telegram') return;
                     
                     if (channel.id === 'whatsapp') {
                       if (waStatus === 'connected') setShowWaModal(true);
@@ -299,38 +325,24 @@ export default function Settings() {
             </div>
             <div className="p-6 space-y-5">
               <div className="bg-surface-bone border border-hairline rounded-[12px] p-4 mb-2">
-                <p className="text-sm text-ink font-bold">Emails will be sent from noreply@broadcastpilot.com.</p>
-                <p className="text-xs text-charcoal mt-1">Customize how your brand appears to recipients below.</p>
+                <p className="text-sm text-ink font-bold">Set the sender name and reply email.</p>
+                <p className="text-xs text-charcoal mt-1">Unverified domains are used as Reply-To while emails send from the verified platform address.</p>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-mute uppercase tracking-wide mb-1">Sender Name</label>
                 <div className="relative">
                   <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-mute" />
-                  <input type="text" value={contactInfo.senderName} onChange={e => setContactInfo({...contactInfo, senderName: e.target.value})} className="text-input pl-9" placeholder="e.g. MetaBull Support" />
+                  <input type="text" value={emailInfo.senderName} onChange={e => setEmailInfo({...emailInfo, senderName: e.target.value})} className="text-input pl-9" placeholder="e.g. MetaBull Support" />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-mute uppercase tracking-wide mb-1">Contact Address</label>
-                <p className="text-[11px] text-charcoal mb-2 leading-relaxed">This physical address will be included at the bottom of your emails to comply with anti-spam laws.</p>
+                <label className="block text-xs font-bold text-mute uppercase tracking-wide mb-1">Sender Email</label>
                 <div className="relative">
-                  <MapPin size={16} className="absolute left-3 top-3 text-mute" />
-                  <textarea value={contactInfo.contactAddress} onChange={e => setContactInfo({...contactInfo, contactAddress: e.target.value})} className="text-input pl-9 resize-none h-20" placeholder="123 Business Rd, Suite 100&#10;Tech City, CA 94000" />
+                  <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-mute" />
+                  <input type="email" value={emailInfo.senderEmail} onChange={e => setEmailInfo({...emailInfo, senderEmail: e.target.value})} className="text-input pl-9" placeholder="e.g. hello@yourdomain.com" />
                 </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-2 border-t border-hairline">
-                <div>
-                  <label className="block text-sm font-bold text-ink">Show Branding</label>
-                  <p className="text-xs text-charcoal mt-0.5">Include "Powered by BroadcastPilot" at the bottom of emails.</p>
-                </div>
-                <button 
-                  onClick={() => setContactInfo({...contactInfo, brandingEnabled: !contactInfo.brandingEnabled})}
-                  className="text-primary hover:text-ink transition-colors"
-                >
-                  {contactInfo.brandingEnabled ? <ToggleRight size={36} /> : <ToggleLeft size={36} className="text-mute" />}
-                </button>
               </div>
             </div>
             

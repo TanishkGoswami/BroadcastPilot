@@ -3,6 +3,22 @@ const router = express.Router();
 const supabase = require('../supabaseClient');
 const { emailQueue } = require('../workers/emailWorker');
 
+function normalizeEmailSettings(creds) {
+    return {
+        smtpSettings: {
+            host: creds.smtp_host || null,
+            port: creds.smtp_port || null,
+            user: creds.smtp_user || null,
+            pass: creds.smtp_pass || null,
+            fromEmail: creds.from_email || null
+        },
+        contactInfo: {
+            senderName: creds.smtp_user,
+            senderEmail: creds.from_email
+        }
+    };
+}
+
 // Trigger an email broadcast campaign
 router.post('/broadcast', async (req, res) => {
     try {
@@ -57,6 +73,8 @@ router.post('/broadcast', async (req, res) => {
         if (campError) throw campError;
 
         // 4. Enqueue Jobs to the Email Worker
+        const emailSettings = normalizeEmailSettings(creds);
+
         const jobs = leads.map(lead => ({
             name: 'sendEmail',
             data: { 
@@ -65,18 +83,7 @@ router.post('/broadcast', async (req, res) => {
                 subject: subject,
                 htmlBody: htmlBody,
                 campaignId: campaign.id,
-                smtpSettings: {
-                    host: creds.smtp_host,
-                    port: creds.smtp_port,
-                    user: creds.smtp_user,
-                    pass: creds.smtp_pass,
-                    fromEmail: creds.from_email
-                },
-                contactInfo: {
-                    senderName: creds.smtp_user, // Or any custom name
-                    contactAddress: creds.from_email,
-                    brandingEnabled: creds.smtp_host === 'true'
-                }
+                ...emailSettings
             },
             opts: {
                 attempts: 3,

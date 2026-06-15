@@ -2,29 +2,81 @@ const express = require('express');
 const router = express.Router();
 const supabase = require('../supabaseClient');
 
-// Save or Update Client Email Settings (Contact Info)
+function isValidEmail(value) {
+    return typeof value === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+router.get('/status', async (req, res) => {
+    try {
+        const { organization_id: organizationId } = req.user;
+
+        if (!organizationId) {
+            return res.status(400).json({ error: 'No organization linked to user.' });
+        }
+
+        const [emailResult, smsResult] = await Promise.all([
+            supabase
+                .from('b_email_credentials')
+                .select('id, smtp_user, from_email, updated_at')
+                .eq('organization_id', organizationId)
+                .maybeSingle(),
+            supabase
+                .from('b_sms_credentials')
+                .select('id, from_number, updated_at')
+                .eq('organization_id', organizationId)
+                .maybeSingle()
+        ]);
+
+        if (emailResult.error) throw emailResult.error;
+        if (smsResult.error) throw smsResult.error;
+
+        res.json({
+            success: true,
+            email: {
+                connected: Boolean(emailResult.data?.from_email),
+                senderName: emailResult.data?.smtp_user || '',
+                senderEmail: emailResult.data?.from_email || '',
+            },
+            sms: {
+                connected: Boolean(smsResult.data?.from_number),
+                fromNumber: smsResult.data?.from_number || '',
+            }
+        });
+    } catch (error) {
+        console.error('Settings Status Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Save or update the sender identity used for email broadcasts.
 router.post('/email', async (req, res) => {
     try {
         const { organization_id: organizationId, role } = req.user;
-        const { senderName, contactAddress, brandingEnabled } = req.body;
+        const { senderName, senderEmail } = req.body;
 
         if (role !== 'owner') {
             return res.status(403).json({ error: 'Only workspace owners can update channel settings' });
         }
 
-        if (!organizationId || !senderName || !contactAddress) {
-            return res.status(400).json({ error: 'Missing required contact information' });
+        if (!organizationId || !senderName || !senderEmail) {
+            return res.status(400).json({ error: 'Sender name and sender email are required' });
         }
+
+        if (!isValidEmail(senderEmail)) {
+            return res.status(400).json({ error: 'Enter a valid sender email address' });
+        }
+
+        const normalizedEmail = String(senderEmail).trim().toLowerCase();
 
         const { data, error } = await supabase
             .from('b_email_credentials')
             .upsert({
                 organization_id: organizationId,
-                smtp_user: senderName, // Storing Sender Name here
-                from_email: contactAddress, // Storing Contact Address here
-                smtp_host: brandingEnabled ? 'true' : 'false', // Storing branding flag here
-                smtp_port: 0, // Dummy value to satisfy NOT NULL
-                smtp_pass: '', // Dummy value to satisfy NOT NULL
+                smtp_user: senderName.trim(),
+                from_email: normalizedEmail,
+                smtp_host: '',
+                smtp_port: 0,
+                smtp_pass: '',
                 updated_at: new Date().toISOString()
             }, { onConflict: 'organization_id' })
             .select()
@@ -34,7 +86,7 @@ router.post('/email', async (req, res) => {
 
         res.json({
             success: true,
-            message: 'Email credentials successfully saved',
+            message: 'Sender identity successfully saved',
             credentials: { id: data.id, organization_id: data.organization_id }
         });
 
