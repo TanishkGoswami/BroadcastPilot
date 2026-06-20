@@ -1,19 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { X, Mail, Save, User, Smartphone, Check } from 'lucide-react';
+import { X, Mail, Save, User, Smartphone, Check, AlertTriangle, Clock } from 'lucide-react';
 import { useAuth } from '../context/AuthProvider';
 
 export default function Settings() {
   const { session, userProfile } = useAuth();
   const organizationId = userProfile?.organization_id;
   const authHeaders = session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {};
-  
   // Email Settings State
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [emailInfo, setEmailInfo] = useState({ senderName: '', senderEmail: '' });
+  const [emailStatus, setEmailStatus] = useState({ status: 'not_connected', verificationStatus: 'not_started', lastError: '', metadata: {} });
   
   // SMS Settings State
   const [showSmsModal, setShowSmsModal] = useState(false);
-  const [smsInfo, setSmsInfo] = useState({ accountSid: '', authToken: '', fromNumber: '' });
+  const [smsInfo, setSmsInfo] = useState({
+    businessName: '',
+    website: '',
+    useCase: '',
+    sampleMessage: '',
+    optInDescription: ''
+  });
+  const [smsStatus, setSmsStatus] = useState({ status: 'not_connected', verificationStatus: 'not_started', fromNumber: '', lastError: '', metadata: {} });
   
   const [isSaving, setIsSaving] = useState(false);
   const [isFacebookConnected, setIsFacebookConnected] = useState(false);
@@ -39,8 +46,21 @@ export default function Settings() {
         if (data.success) {
           setIsEmailConnected(Boolean(data.email?.connected));
           setIsSmsConnected(Boolean(data.sms?.connected));
+          setEmailStatus({
+            status: data.email?.status || 'not_connected',
+            verificationStatus: data.email?.verificationStatus || 'not_started',
+            lastError: data.email?.lastError || '',
+            metadata: data.email?.metadata || {},
+          });
+          setSmsStatus({
+            status: data.sms?.status || 'not_connected',
+            verificationStatus: data.sms?.verificationStatus || 'not_started',
+            fromNumber: data.sms?.fromNumber || '',
+            lastError: data.sms?.lastError || '',
+            metadata: data.sms?.metadata || {},
+          });
 
-          if (data.email?.connected) {
+          if (data.email?.senderEmail) {
             setEmailInfo({
               senderName: data.email.senderName || '',
               senderEmail: data.email.senderEmail || '',
@@ -106,8 +126,15 @@ export default function Settings() {
         body: JSON.stringify(emailInfo)
       });
       if (!res.ok) throw new Error(await res.text());
-      setIsEmailConnected(true);
-      alert('Email settings saved successfully!');
+      const data = await res.json();
+      setIsEmailConnected(data.connection?.status === 'active');
+      setEmailStatus({
+        status: data.connection?.status || 'setup_required',
+        verificationStatus: data.connection?.verification_status || 'not_started',
+        lastError: data.connection?.last_error || '',
+        metadata: data.connection?.metadata || {},
+      });
+      alert('Email sender saved successfully.');
       setShowEmailModal(false);
     } catch (error) {
       alert('Failed to save settings: ' + error.message);
@@ -124,26 +151,55 @@ export default function Settings() {
 
     setIsSaving(true);
     try {
-      const mockAssignedNumber = '+18166536732';
-      
       const res = await fetch(`${import.meta.env.VITE_API_URL}/api/settings/sms`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
-        body: JSON.stringify({
-          accountSid: 'MASTER_ACCOUNT_SID', // To be replaced by backend .env logic later
-          authToken: 'MASTER_AUTH_TOKEN', 
-          fromNumber: mockAssignedNumber
-        })
+        body: JSON.stringify(smsInfo)
       });
       if (!res.ok) throw new Error(await res.text());
-      setIsSmsConnected(true);
-      alert(`SMS Activated! Your assigned number is ${mockAssignedNumber}`);
+      const data = await res.json();
+      setIsSmsConnected(data.connection?.status === 'active');
+      setSmsStatus({
+        status: data.connection?.status || 'pending_verification',
+        verificationStatus: data.connection?.verification_status || 'pending_compliance',
+        fromNumber: data.connection?.sender_identity || '',
+        lastError: data.connection?.last_error || '',
+        metadata: data.connection?.metadata || {},
+      });
+      alert(data.message || 'SMS setup saved.');
       setShowSmsModal(false);
     } catch (error) {
       alert('Failed to activate SMS: ' + error.message);
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const getChannelStatusLabel = (status) => {
+    const labels = {
+      connected: 'Active',
+      connect: 'Setup required',
+      not_connected: 'Setup required',
+      setup_required: 'Setup required',
+      pending_verification: 'Pending verification',
+      active: 'Active',
+      paused: 'Paused',
+      failed: 'Failed'
+    };
+    return labels[status] || 'Setup required';
+  };
+
+  const getChannelStatusClass = (status) => {
+    if (status === 'connected' || status === 'active') return 'bg-green-50 text-green-700 border-green-200';
+    if (status === 'pending_verification') return 'bg-amber-50 text-amber-700 border-amber-200';
+    if (status === 'failed' || status === 'paused') return 'bg-red-50 text-red-700 border-red-200';
+    return 'bg-surface-bone text-charcoal border-hairline';
+  };
+
+  const getChannelButtonLabel = (channel) => {
+    if (channel.status === 'connected' || channel.status === 'active') return 'Manage';
+    if (channel.status === 'pending_verification') return 'Continue Setup';
+    return 'Connect';
   };
 
   const handleConnectWa = async () => {
@@ -211,7 +267,9 @@ export default function Settings() {
       name: 'SMS',
       description: 'Collect phone numbers and reengage your contacts via text.',
       icon: <div className="w-8 h-8 bg-emerald-500 text-white rounded-full flex items-center justify-center font-bold text-xs">SMS</div>,
-      status: isSmsConnected ? 'connected' : 'connect',
+      status: smsStatus.status === 'active' ? 'active' : smsStatus.status,
+      detail: smsStatus.fromNumber || 'Compliance required before broadcasts',
+      lastError: smsStatus.lastError,
       badge: 'UPGRADE'
     },
     {
@@ -219,7 +277,9 @@ export default function Settings() {
       name: 'Email',
       description: 'Use Email marketing for automation and rich content campaigns.',
       icon: <div className="w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold text-sm">@</div>,
-      status: isEmailConnected ? 'connected' : 'connect',
+      status: emailStatus.status === 'active' ? 'active' : emailStatus.status,
+      detail: emailInfo.senderEmail || 'Sender verification required',
+      lastError: emailStatus.lastError,
       badge: 'UPGRADE'
     },
     {
@@ -238,7 +298,7 @@ export default function Settings() {
       {/* Global Header */}
       <div className="flex items-center justify-between px-8 py-8 border-b border-hairline z-10 shrink-0">
         <div>
-          <h2 className="text-5xl font-bold font-display text-ink leading-none -tracking-[1.8px]">Settings</h2>
+          <h2 className="text-5xl font-bold font-display text-ink leading-none">Settings</h2>
           <p className="text-base text-charcoal mt-3">Connect channels and configure your workspace integrations.</p>
         </div>
       </div>
@@ -271,12 +331,21 @@ export default function Settings() {
                 <p className="text-sm text-charcoal mb-6 flex-1 px-2 leading-relaxed">
                   {channel.description}
                 </p>
+                <div className={`mb-3 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold ${getChannelStatusClass(channel.status)}`}>
+                  {(channel.status === 'active' || channel.status === 'connected') && <Check size={13} />}
+                  {channel.status === 'pending_verification' && <Clock size={13} />}
+                  {(channel.status === 'failed' || channel.status === 'paused') && <AlertTriangle size={13} />}
+                  {getChannelStatusLabel(channel.status)}
+                </div>
+                {channel.detail && (
+                  <p className="mb-4 min-h-[32px] text-xs leading-relaxed text-charcoal">{channel.detail}</p>
+                )}
                 
                 <button 
                   className={`w-full ${
-                    channel.status === 'connected'
-                      ? 'flex items-center justify-center gap-2 bg-surface-bone text-primary border border-hairline py-2 rounded-[8px] font-semibold text-sm cursor-default'
-                      : channel.status === 'reconnect' 
+                    channel.status === 'connected' || channel.status === 'active'
+                      ? 'button-outline justify-center'
+                      : channel.status === 'reconnect' || channel.status === 'pending_verification'
                         ? 'button-outline justify-center' 
                         : 'button-primary justify-center'
                   }`}
@@ -301,8 +370,7 @@ export default function Settings() {
                     }
                   }}
                 >
-                  {channel.status === 'connected' && <Check size={16} className="text-green-600" />}
-                  {channel.status === 'connected' ? 'Connected' : channel.status === 'reconnect' ? 'Reconnect' : 'Connect'}
+                  {getChannelButtonLabel(channel)}
                 </button>
               </div>
             ))}
@@ -317,7 +385,7 @@ export default function Settings() {
             <div className="flex items-center justify-between p-5 border-b border-hairline bg-canvas">
               <h2 className="text-2xl font-bold font-display text-ink flex items-center gap-2">
                 <Mail className="text-primary" size={24} />
-                Email Settings
+                Email Sender
               </h2>
               <button onClick={() => setShowEmailModal(false)} className="text-mute hover:text-ink">
                 <X size={20} />
@@ -327,6 +395,9 @@ export default function Settings() {
               <div className="bg-surface-bone border border-hairline rounded-[12px] p-4 mb-2">
                 <p className="text-sm text-ink font-bold">Set the sender name and reply email.</p>
                 <p className="text-xs text-charcoal mt-1">Unverified domains are used as Reply-To while emails send from the verified platform address.</p>
+                {emailStatus.verificationStatus && (
+                  <p className="text-xs text-primary mt-2 font-semibold">Status: {emailStatus.verificationStatus.replace(/_/g, ' ')}</p>
+                )}
               </div>
 
               <div>
@@ -363,7 +434,7 @@ export default function Settings() {
             <div className="flex items-center justify-between p-5 border-b border-hairline bg-canvas">
               <h2 className="text-2xl font-bold font-display text-ink flex items-center gap-2">
                 <Smartphone className="text-primary" size={24} />
-                Twilio SMS Settings
+                SMS Compliance Setup
               </h2>
               <button onClick={() => setShowSmsModal(false)} className="text-mute hover:text-ink">
                 <X size={20} />
@@ -371,23 +442,71 @@ export default function Settings() {
             </div>
             <div className="p-6 space-y-5">
               <div className="bg-surface-bone border border-hairline rounded-[12px] p-4 mb-2">
-                <p className="text-sm text-ink font-bold">Activate SMS Broadcasting for your account.</p>
-                <p className="text-xs text-charcoal mt-1">When you activate, our team will automatically assign a dedicated Twilio phone number to your business for sending messages.</p>
+                <p className="text-sm text-ink font-bold">Request SMS broadcasting approval.</p>
+                <p className="text-xs text-charcoal mt-1">We manage Twilio infrastructure, but carriers require business and opt-in details before SMS broadcasts are active.</p>
+                {smsStatus.fromNumber && (
+                  <p className="text-xs text-primary mt-2 font-semibold">Assigned number: {smsStatus.fromNumber}</p>
+                )}
               </div>
 
-              <div className="flex items-center justify-center p-6 border-2 border-dashed border-hairline rounded-[16px] bg-canvas">
-                <div className="text-center">
-                  <Smartphone className="mx-auto text-mute mb-2" size={32} />
-                  <p className="text-sm font-bold text-ink">No technical setup required</p>
-                  <p className="text-xs text-charcoal mt-1">We handle the Twilio infrastructure for you.</p>
-                </div>
+              <div>
+                <label className="block text-xs font-bold text-mute uppercase tracking-wide mb-1">Business Name</label>
+                <input
+                  type="text"
+                  value={smsInfo.businessName}
+                  onChange={e => setSmsInfo({ ...smsInfo, businessName: e.target.value })}
+                  className="text-input"
+                  placeholder="e.g. MetaBull Universe"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-mute uppercase tracking-wide mb-1">Website</label>
+                <input
+                  type="url"
+                  value={smsInfo.website}
+                  onChange={e => setSmsInfo({ ...smsInfo, website: e.target.value })}
+                  className="text-input"
+                  placeholder="https://yourdomain.com"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-mute uppercase tracking-wide mb-1">Use Case</label>
+                <input
+                  type="text"
+                  value={smsInfo.useCase}
+                  onChange={e => setSmsInfo({ ...smsInfo, useCase: e.target.value })}
+                  className="text-input"
+                  placeholder="Promotions, reminders, lead follow-up"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-mute uppercase tracking-wide mb-1">Sample Message</label>
+                <textarea
+                  value={smsInfo.sampleMessage}
+                  onChange={e => setSmsInfo({ ...smsInfo, sampleMessage: e.target.value })}
+                  className="text-input min-h-[92px] resize-none"
+                  placeholder="Hi {{First_Name}}, thanks for your interest. Reply STOP to opt out."
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-mute uppercase tracking-wide mb-1">Opt-in Source</label>
+                <textarea
+                  value={smsInfo.optInDescription}
+                  onChange={e => setSmsInfo({ ...smsInfo, optInDescription: e.target.value })}
+                  className="text-input min-h-[92px] resize-none"
+                  placeholder="Explain how contacts give consent, such as website form checkbox or lead ad disclosure."
+                />
               </div>
             </div>
             
             <div className="p-5 border-t border-hairline bg-surface-card flex justify-end gap-3">
               <button onClick={() => setShowSmsModal(false)} className="button-outline border-transparent bg-transparent hover:border-hairline">Cancel</button>
               <button onClick={handleSaveSmsInfo} disabled={isSaving} className="button-primary">
-                {isSaving ? 'Activating...' : <><Smartphone size={16} /> Activate SMS & Get Number</>}
+                {isSaving ? 'Saving...' : <><Smartphone size={16} /> Save SMS Setup</>}
               </button>
             </div>
           </div>

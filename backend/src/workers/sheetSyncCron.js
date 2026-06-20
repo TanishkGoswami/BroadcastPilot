@@ -27,7 +27,11 @@ async function syncAllSheets() {
             if (conn.spreadsheet_id === 'GLOBAL_OAUTH') continue;
             
             try {
-                await sheetSyncQueue.add('syncSheet', { conn });
+                await sheetSyncQueue.add('syncSheet', { conn }, {
+                    jobId: `sheet-sync-${conn.id}`,
+                    removeOnComplete: true,
+                    removeOnFail: false
+                });
                 console.log(`[Cron] Queued sync for sheet ${conn.spreadsheet_id}`);
             } catch (err) {
                 console.error(`[Cron] Error queueing sheet connection ${conn.id}:`, err);

@@ -92,7 +92,7 @@ export default function Dashboard() {
       {/* Global Header */}
       <div className="flex items-center justify-between px-8 py-8 border-b border-hairline z-10 shrink-0">
         <div>
-          <h1 className="text-5xl font-bold font-display text-ink leading-none -tracking-[1.8px]">Overview Dashboard</h1>
+          <h1 className="page-title text-5xl">Overview Dashboard</h1>
           <p className="text-base text-charcoal mt-3">Welcome back! Here's what's happening today.</p>
         </div>
       </div>
@@ -108,7 +108,7 @@ export default function Dashboard() {
               <div className="flex justify-between items-start relative z-10">
                 <div>
                   <p className="text-charcoal text-sm font-semibold tracking-wide uppercase mb-3">Total Leads</p>
-                  <h3 className="text-6xl font-bold font-display text-ink leading-none -tracking-[1.8px]">{leads.length}</h3>
+                  <h3 className="metric-value text-6xl">{leads.length}</h3>
                 </div>
                 <div className="p-3 bg-canvas text-ink rounded-full border border-hairline">
                   <Users size={24} />
@@ -125,7 +125,7 @@ export default function Dashboard() {
               <div className="flex justify-between items-start relative z-10">
                 <div>
                   <p className="text-charcoal text-sm font-semibold tracking-wide uppercase mb-3">Open Chats</p>
-                  <h3 className="text-6xl font-bold font-display text-ink leading-none -tracking-[1.8px]">{conversations.length}</h3>
+                  <h3 className="metric-value text-6xl">{conversations.length}</h3>
                 </div>
                 <div className="p-3 bg-canvas text-ink rounded-full border border-hairline">
                   <MessageSquare size={24} />
@@ -142,7 +142,7 @@ export default function Dashboard() {
               <div className="flex justify-between items-start relative z-10">
                 <div>
                   <p className="text-charcoal text-sm font-semibold tracking-wide uppercase mb-3">Active Broadcasts</p>
-                  <h3 className="text-6xl font-bold font-display text-ink leading-none -tracking-[1.8px]">{activeCampaigns}</h3>
+                  <h3 className="metric-value text-6xl">{activeCampaigns}</h3>
                 </div>
                 <div className="p-3 bg-canvas text-ink rounded-full border border-hairline">
                   <Radio size={24} />
@@ -162,7 +162,7 @@ export default function Dashboard() {
             {/* Recent Messages */}
             <div className="bg-surface-card rounded-[16px] border border-hairline p-8 flex flex-col h-full">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-3xl font-bold font-display text-ink leading-none">Recent Messages</h2>
+                <h2 className="section-title text-3xl">Recent Messages</h2>
                 <button 
                   onClick={() => navigate('/inbox')}
                   className="button-ghost text-primary"
@@ -202,7 +202,7 @@ export default function Dashboard() {
             {/* Recent Leads */}
             <div className="bg-surface-card rounded-[16px] border border-hairline p-8 flex flex-col h-full">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-3xl font-bold font-display text-ink leading-none">New Leads</h2>
+                <h2 className="section-title text-3xl">New Leads</h2>
                 <button 
                   onClick={() => navigate('/contacts')}
                   className="button-ghost text-primary"

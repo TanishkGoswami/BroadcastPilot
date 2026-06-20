@@ -162,9 +162,10 @@ const worker = new Worker('whatsapp-broadcast', async (job) => {
         await supabase.from('b_delivery_logs').insert({
             campaign_id: campaign.id,
             lead_id: leadId,
-            phone: phone,
-            meta_message_id: wa_message_id,
-            status: 'SENT'
+            channel: 'whatsapp',
+            contact: phone,
+            message_id: wa_message_id,
+            status: 'sent'
         });
 
         // Inbox Sync Logic
@@ -254,8 +255,9 @@ const worker = new Worker('whatsapp-broadcast', async (job) => {
         await supabase.from('b_delivery_logs').insert({
             campaign_id: campaign.id,
             lead_id: leadId,
-            phone: phone,
-            status: 'FAILED',
+            channel: 'whatsapp',
+            contact: phone,
+            status: 'failed',
             error: metaError
         });
         

@@ -6,7 +6,6 @@ import { useAuth } from '../context/AuthProvider';
 export default function Contacts() {
   const { session, userProfile } = useAuth();
   const ORG_ID = userProfile?.organization_id;
-  
   const [leads, setLeads] = useState([]);
   const [team, setTeam] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -39,7 +38,6 @@ export default function Contacts() {
     const matchesStatus = statusFilter === 'ALL' || lead.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
-
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -281,7 +279,7 @@ export default function Contacts() {
       {/* Header */}
       <div className="flex items-center justify-between px-8 py-8 border-b border-hairline z-10">
         <div>
-          <h1 className="text-5xl font-bold font-display text-ink leading-none -tracking-[1.8px]">Contacts</h1>
+          <h1 className="text-5xl font-bold font-display text-ink leading-none">Contacts</h1>
           <p className="text-base text-charcoal mt-3">Manage your leads and assignments</p>
         </div>
         <div className="flex gap-3">

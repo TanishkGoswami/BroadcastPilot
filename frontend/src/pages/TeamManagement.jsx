@@ -118,7 +118,7 @@ export default function TeamManagement() {
             {/* Global Header */}
             <div className="flex items-center justify-between px-8 py-8 border-b border-hairline z-10 shrink-0">
                 <div>
-                    <h2 className="text-5xl font-bold font-display text-ink leading-none -tracking-[1.8px]">Team Management</h2>
+                    <h2 className="text-5xl font-bold font-display text-ink leading-none">Team Management</h2>
                     <p className="text-base text-charcoal mt-3">Manage your agents and organization members.</p>
                 </div>
                 <button 

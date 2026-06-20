@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthProvider';
 
 const TABS = ['All messages', 'Messenger', 'Instagram', 'WhatsApp'];
 const SUBTABS = ['All', 'Unread', 'Priority', 'Follow up'];
+const REPLY_WINDOW_ERROR_RE = /(24\s*hour|24-hour|customer\s+service\s+window|outside\s+the\s+allowed|template\s+message|required\s+template|allowed time)/i;
 
 export default function Inbox() {
   const { session } = useAuth();
@@ -20,6 +21,7 @@ export default function Inbox() {
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [sendNotice, setSendNotice] = useState(null);
   
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
@@ -77,17 +79,25 @@ export default function Inbox() {
 
       if (!res.ok) {
         const err = await res.json();
-        alert(`Failed to send message: ${err.error}`);
+        const isReplyWindowError = REPLY_WINDOW_ERROR_RE.test(err.error || '');
+        setSendNotice({
+          title: isReplyWindowError ? 'Reply window is closed' : 'Message was not sent',
+          message: err.error || 'This conversation cannot receive a normal reply right now.',
+          replyWindowHelp: isReplyWindowError,
+        });
         // Revert optimistic update
         setMessages(prev => prev.filter(m => m.id !== tempMsg.id));
         setNewMessage(tempText);
       } else {
         const realMsg = await res.json();
-        setMessages(prev => prev.map(m => m.id === tempMsg.id ? { ...realMsg, content: realMsg.content.text } : m));
+        setMessages(prev => prev.map(m => m.id === tempMsg.id ? { ...realMsg, content: getMessageText(realMsg) } : m));
       }
     } catch (error) {
       console.error("Send error", error);
-      alert('Failed to send message due to network error');
+      setSendNotice({
+        title: 'Message was not sent',
+        message: 'We could not reach the messaging service. Please check your connection and try again.',
+      });
       setMessages(prev => prev.filter(m => m.id !== tempMsg.id));
       setNewMessage(tempText);
     } finally {
@@ -119,7 +129,7 @@ export default function Inbox() {
   const fetchMessages = async (conversationId, showLoading = true) => {
     if (showLoading) setLoading(true);
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/chat/messages/${conversationId}`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/chat/messages/${encodeURIComponent(conversationId)}`, {
         headers: { 'Authorization': `Bearer ${session.access_token}` }
       });
       const data = await res.json();
@@ -172,6 +182,59 @@ export default function Inbox() {
     return contact.phone || contact.wa_id || "Unknown";
   };
 
+  const getInitials = (name) => {
+    const cleanName = String(name || 'Unknown').trim();
+    const parts = cleanName.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    return cleanName.slice(0, 2).toUpperCase();
+  };
+
+  const getAvatarColor = (name) => {
+    const palette = [
+      'bg-blue-700 text-white',
+      'bg-emerald-100 text-emerald-800',
+      'bg-violet-100 text-violet-800',
+      'bg-rose-100 text-rose-800',
+      'bg-slate-200 text-slate-800',
+      'bg-amber-100 text-amber-800',
+    ];
+    const hash = String(name || '').split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+    return palette[hash % palette.length];
+  };
+
+  const Avatar = ({ contact, size = 'md' }) => {
+    const [imageFailed, setImageFailed] = useState(false);
+    const displayName = getDisplayName(contact);
+    const imageUrl = contact?.profile_pic;
+    const sizeClass = size === 'sm' ? 'w-6 h-6 text-[10px]' : size === 'header' ? 'w-10 h-10 text-sm' : 'w-12 h-12 text-lg';
+
+    if (imageUrl && !imageFailed) {
+      return (
+        <img
+          src={imageUrl}
+          alt={displayName}
+          className={`${sizeClass} object-cover rounded-full`}
+          onError={() => setImageFailed(true)}
+        />
+      );
+    }
+
+    return (
+      <span className={`${sizeClass} ${getAvatarColor(displayName)} flex items-center justify-center rounded-full font-semibold tracking-normal`}>
+        {getInitials(displayName)}
+      </span>
+    );
+  };
+
+  const getMessageText = (message) => {
+    if (!message) return '';
+    if (typeof message.content === 'string') return message.content;
+    if (typeof message.content?.text === 'string') return message.content.text;
+    if (typeof message.text === 'string') return message.text;
+    if (typeof message.body === 'string') return message.body;
+    return '[Media]';
+  };
+
   const formatTime = (isoString) => {
     if (!isoString) return "";
     const date = new Date(isoString);
@@ -204,11 +267,38 @@ export default function Inbox() {
 
   return (
     <div className="flex flex-col h-full w-full bg-transparent overflow-hidden font-sans">
+      {sendNotice && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-ink/40 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-[16px] border border-hairline bg-surface-card shadow-2xl overflow-hidden">
+            <div className="p-6 text-center">
+              <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full border border-amber-200 bg-amber-50">
+                <AlertTriangle size={26} className="text-amber-600" />
+              </div>
+              <h3 className="mb-2 text-2xl font-bold font-display text-ink">{sendNotice.title}</h3>
+              <p className="text-sm leading-relaxed text-charcoal">{sendNotice.message}</p>
+              {sendNotice.replyWindowHelp && (
+                <div className="mt-4 rounded-[12px] border border-hairline bg-canvas p-3 text-left text-xs leading-relaxed text-charcoal">
+                  Ask the customer to send a new message first. Once they reply, Meta reopens the conversation window and agents can continue normally.
+                </div>
+              )}
+            </div>
+            <div className="border-t border-hairline bg-canvas p-5 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setSendNotice(null)}
+                className="button-primary justify-center px-8"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Global Header */}
       <div className="flex items-center justify-between px-8 py-8 border-b border-hairline z-10 shrink-0">
         <div>
-          <h2 className="text-5xl font-bold font-display text-ink leading-none -tracking-[1.8px]">Inbox</h2>
+          <h2 className="text-5xl font-bold font-display text-ink leading-none">Inbox</h2>
           <p className="text-base text-charcoal mt-3">Respond to messages and manage your conversations.</p>
         </div>
       </div>
@@ -300,12 +390,7 @@ export default function Inbox() {
                     >
                       <div className="relative">
                         <div className="h-12 w-12 rounded-full bg-canvas border border-hairline overflow-hidden flex items-center justify-center shrink-0">
-                          {/* Avatar */}
-                          <img 
-                            src={conv.contacts?.profile_pic || `https://ui-avatars.com/api/?name=${encodeURIComponent(getDisplayName(conv.contacts))}&background=random`} 
-                            alt="avatar" 
-                            className="w-full h-full object-cover"
-                          />
+                          <Avatar contact={conv.contacts} />
                         </div>
                         {getChannelIcon(conv.channel)}
                       </div>
@@ -320,7 +405,7 @@ export default function Inbox() {
                           </span>
                         </div>
                         <p className={`text-[13px] truncate ${conv.unread_count > 0 ? 'text-ink font-medium' : 'text-charcoal'}`}>
-                          {conv.channel === 'whatsapp' ? 'WhatsApp Message...' : 'You: Hey! Thanks for commenting...'}
+                          {conv.last_message_preview || (conv.channel === 'whatsapp' ? 'WhatsApp Message' : 'New message')}
                         </p>
                       </div>
                     </div>
@@ -338,11 +423,7 @@ export default function Inbox() {
                 <div className="flex items-center gap-3">
                   <div className="relative">
                     <div className="h-10 w-10 rounded-full border border-hairline overflow-hidden flex items-center justify-center shrink-0 bg-canvas">
-                      <img 
-                        src={selectedConversation.contacts?.profile_pic || `https://ui-avatars.com/api/?name=${encodeURIComponent(getDisplayName(selectedConversation.contacts))}&background=random`} 
-                        alt="avatar" 
-                        className="w-full h-full object-cover"
-                      />
+                      <Avatar contact={selectedConversation.contacts} size="header" />
                     </div>
                     {getChannelIcon(selectedConversation.channel)}
                   </div>
@@ -375,7 +456,7 @@ export default function Inbox() {
                         <div className={`flex items-end gap-2 ${isInbound ? 'flex-row' : 'flex-row-reverse'}`}>
                           {isInbound && (
                             <div className="w-6 h-6 rounded-full overflow-hidden shrink-0 border border-hairline">
-                               <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(getDisplayName(selectedConversation.contacts))}&background=random`} alt="avatar" />
+                              <Avatar contact={selectedConversation.contacts} size="sm" />
                             </div>
                           )}
                           <div className={`max-w-[70%] px-4 py-2.5 text-[14px] leading-snug ${
@@ -383,7 +464,7 @@ export default function Inbox() {
                               ? 'bg-surface-bone text-ink rounded-[16px] rounded-bl-sm border border-hairline' 
                               : 'bg-primary text-white rounded-[16px] rounded-br-sm'
                           }`}>
-                            <p className="whitespace-pre-wrap">{msg.content}</p>
+                            <p className="whitespace-pre-wrap">{getMessageText(msg)}</p>
                           </div>
                         </div>
                       </div>

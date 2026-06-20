@@ -15,6 +15,8 @@ const CHANNELS = [
   { id: 'email', name: 'Email', icon: <Mail className="text-purple-500" size={28} />, desc: 'Rich HTML email campaigns' },
 ];
 
+const ENABLED_CHANNELS = new Set(['email', 'sms', 'whatsapp']);
+
 export default function Campaigns() {
   const { session, userProfile } = useAuth();
   const ORG_ID = userProfile?.organization_id;
@@ -31,7 +33,6 @@ export default function Campaigns() {
   React.useEffect(() => {
     if (session && ORG_ID) {
       fetchBroadcasts();
-      fetchMetaTemplates();
     }
   }, [session, ORG_ID]);
 
@@ -78,8 +79,33 @@ export default function Campaigns() {
     setView('create');
     setStep(1);
     setSelectedChannel(null);
+    setSelectedTemplate(null);
+    setMapping({});
     setMessageContent('Hi {{First_Name}}, check out our latest offer!');
     setEmailSubject('Exclusive Update for You!');
+  };
+
+  const handleSelectChannel = (channelId) => {
+    if (!ENABLED_CHANNELS.has(channelId)) {
+      alert(`${CHANNELS.find(channel => channel.id === channelId)?.name || 'This channel'} broadcasts are coming soon.`);
+      return;
+    }
+
+    setSelectedChannel(channelId);
+    setSelectedTemplate(null);
+    setMapping({});
+
+    if (channelId === 'email') {
+      setMessageContent('<p>Hi {{First_Name}},</p><p>Check out our latest offer!</p>');
+      setEmailSubject('Exclusive Update for You!');
+    } else if (channelId === 'sms') {
+      setMessageContent('Hi {{Name}}, check out our latest offer!');
+    } else if (channelId === 'whatsapp') {
+      setMessageContent('');
+      fetchMetaTemplates();
+    } else {
+      setMessageContent('Hi {{Name}}, check out our latest offer!');
+    }
   };
 
   const handleSend = async () => {
@@ -193,7 +219,7 @@ export default function Campaigns() {
       <div className="flex flex-col h-full bg-transparent font-sans">
         <div className="flex items-center justify-between px-8 py-8 border-b border-hairline z-10 shrink-0">
           <div>
-            <h1 className="text-5xl font-bold font-display text-ink leading-none -tracking-[1.8px]">Broadcasts</h1>
+            <h1 className="text-5xl font-bold font-display text-ink leading-none">Broadcasts</h1>
             <p className="text-base text-charcoal mt-3">Manage and track your marketing campaigns.</p>
           </div>
           <button 
@@ -291,11 +317,11 @@ export default function Campaigns() {
                         <div className="flex items-center gap-4">
                           <div>
                             <p className="text-xs text-gray-500 mb-0.5">Sent</p>
-                            <p className="text-sm font-medium text-gray-900">{b.sent.toLocaleString()}</p>
+                            <p className="text-sm font-medium text-gray-900">{Number(b.sent || 0).toLocaleString()}</p>
                           </div>
                           <div>
                             <p className="text-xs text-gray-500 mb-0.5">Read</p>
-                            <p className="text-sm font-medium text-gray-900">{b.read > 0 ? `${Math.round((b.read / b.sent) * 100)}%` : '-'}</p>
+                            <p className="text-sm font-medium text-gray-900">{b.read > 0 && b.sent > 0 ? `${Math.round((b.read / b.sent) * 100)}%` : '-'}</p>
                           </div>
                         </div>
                       </td>
@@ -355,7 +381,7 @@ export default function Campaigns() {
             {step < 3 ? (
               <button 
                 onClick={() => setStep(step + 1)}
-                disabled={step === 1 && !selectedChannel}
+                disabled={step === 1 && (!selectedChannel || !ENABLED_CHANNELS.has(selectedChannel))}
                 className="button-primary"
               >
                 Next Step
@@ -387,7 +413,7 @@ export default function Campaigns() {
                 {CHANNELS.map(channel => (
                   <div 
                     key={channel.id}
-                    onClick={() => setSelectedChannel(channel.id)}
+                    onClick={() => handleSelectChannel(channel.id)}
                     className={`bg-surface-card border rounded-[16px] p-6 cursor-pointer transition-all hover:shadow-md ${selectedChannel === channel.id ? 'border-primary bg-surface-bone' : 'border-hairline hover:border-hairline-strong'}`}
                   >
                     <div className="flex flex-col items-center text-center">
@@ -441,7 +467,30 @@ export default function Campaigns() {
                         </div>
                       </div>
                     </div>
-                  ) : (
+                  ) : selectedChannel === 'sms' ? (
+                    <div className="w-[450px] bg-surface-card rounded-[16px] shadow-2xl border border-hairline overflow-hidden mx-auto flex flex-col h-full">
+                      <div className="bg-emerald-500 px-4 py-3 flex items-center gap-2 shrink-0">
+                        <Smartphone size={16} className="text-white" />
+                        <span className="text-sm font-bold text-white uppercase tracking-wider">SMS Composer</span>
+                      </div>
+                      <div className="p-5 flex flex-col flex-1 gap-4">
+                        <div className="flex-1 flex flex-col">
+                          <label className="block text-xs font-bold text-mute mb-1 uppercase tracking-wide">Text Message</label>
+                          <textarea
+                            className="flex-1 w-full text-sm text-ink border border-hairline rounded-[12px] p-4 resize-none focus:outline-none focus:border-hairline-strong bg-canvas"
+                            value={messageContent}
+                            onChange={(e) => setMessageContent(e.target.value)}
+                            maxLength={480}
+                            placeholder="Hi {{Name}}, your message here..."
+                          />
+                          <div className="flex items-center justify-between mt-2 text-xs text-charcoal">
+                            <span>Use {'{{Name}}'} to personalize with lead name.</span>
+                            <span>{messageContent.length}/480</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : selectedChannel === 'whatsapp' ? (
                     <div className="w-[450px] bg-surface-card rounded-[16px] shadow-2xl border border-hairline overflow-hidden mx-auto flex flex-col h-full">
                       <div className="bg-[#25D366] px-4 py-3 flex items-center gap-2 shrink-0">
                         <MessageSquare size={16} className="text-white" />
@@ -494,6 +543,12 @@ export default function Campaigns() {
                         )}
                       </div>
                     </div>
+                  ) : (
+                    <div className="w-[450px] bg-surface-card rounded-[16px] border border-hairline p-8 text-center m-auto">
+                      <MessageSquare size={32} className="mx-auto text-mute mb-3" />
+                      <h3 className="text-xl font-bold font-display text-ink mb-2">Channel Coming Soon</h3>
+                      <p className="text-sm text-charcoal">This broadcast channel is not wired yet. Choose Email, SMS, or WhatsApp.</p>
+                    </div>
                   )}
                 </div>
               </div>
@@ -515,7 +570,20 @@ export default function Campaigns() {
                     </div>
                     <div className="flex-1 p-6 overflow-auto bg-surface-card text-ink text-sm" dangerouslySetInnerHTML={{ __html: messageContent || '<p>Start typing HTML to see preview...</p>' }} />
                   </div>
-                ) : (
+                ) : selectedChannel === 'sms' ? (
+                  <div className="w-[300px] h-[560px] bg-white rounded-[40px] shadow-xl border-[8px] border-gray-900 overflow-hidden relative flex flex-col">
+                    <div className="absolute top-0 inset-x-0 h-6 bg-gray-900 rounded-b-3xl w-40 mx-auto z-20"></div>
+                    <div className="bg-gray-100 px-4 pt-10 pb-3 border-b border-gray-200 shrink-0">
+                      <p className="text-xs font-bold text-gray-900">SMS Preview</p>
+                      <p className="text-[10px] text-gray-500">BroadcastPilot</p>
+                    </div>
+                    <div className="flex-1 bg-gray-50 p-4 flex flex-col justify-end">
+                      <div className="bg-emerald-500 text-white p-3 rounded-2xl rounded-br-none max-w-[90%] shadow-sm self-end whitespace-pre-wrap text-sm">
+                        {messageContent || 'Start typing your SMS message...'}
+                      </div>
+                    </div>
+                  </div>
+                ) : selectedChannel === 'whatsapp' ? (
                   <div className="w-[300px] h-[600px] bg-white rounded-[40px] shadow-xl border-[8px] border-gray-900 overflow-hidden relative flex flex-col">
                     {/* Notch */}
                     <div className="absolute top-0 inset-x-0 h-6 bg-gray-900 rounded-b-3xl w-40 mx-auto z-20"></div>
@@ -556,6 +624,8 @@ export default function Campaigns() {
                       </div>
                     </div>
                   </div>
+                ) : (
+                  <div className="text-center text-sm text-charcoal mt-20">Preview is available for Email, SMS, and WhatsApp.</div>
                 )}
               </div>
             </div>
@@ -579,8 +649,8 @@ export default function Campaigns() {
                         onChange={(e) => setCondition(e.target.value)}
                         className="text-input"
                       >
-                        <option value="Interested Leads">All Interested Leads (Recommended)</option>
-                        <option value="All Leads">All Pending Leads</option>
+                        <option value="INTERESTED">All Interested Leads (Recommended)</option>
+                        <option value="PENDING">All Pending Leads</option>
                       </select>
                       <p className="text-xs text-charcoal mt-2">Emails will only be sent to leads that have a valid email address on file.</p>
                     </div>

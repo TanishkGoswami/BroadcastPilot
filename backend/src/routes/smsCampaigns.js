@@ -3,6 +3,8 @@ const router = express.Router();
 const { Queue } = require('bullmq');
 const supabase = require('../supabaseClient');
 const { createRedisConnection } = require('../utils/redisConnection');
+const { personalizeMessage } = require('../utils/personalizeMessage');
+const { preflightSmsCampaign } = require('../services/campaignPreflight');
 
 const connection = createRedisConnection();
 const smsQueue = new Queue('smsQueue', { connection });
@@ -21,34 +23,12 @@ router.post('/send', async (req, res) => {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
-        // 1. Verify SMS Credentials exist for this org
-        const { data: creds, error: credsError } = await supabase
-            .from('b_sms_credentials')
-            .select('id')
-            .eq('organization_id', organizationId)
-            .single();
-
-        if (credsError || !creds) {
-            return res.status(400).json({ error: 'No SMS credentials found. Please connect Twilio in Settings first.' });
+        const preflight = await preflightSmsCampaign({ organizationId, leadStatusFilter });
+        if (!preflight.ok) {
+            return res.status(400).json({ error: preflight.error, connection: preflight.connection });
         }
 
-        // 2. Fetch target leads
-        let leadQuery = supabase
-            .from('b_leads')
-            .select('id, name, phone')
-            .eq('organization_id', organizationId)
-            .not('phone', 'is', null);
-
-        if (leadStatusFilter && leadStatusFilter !== 'ALL') {
-            leadQuery = leadQuery.eq('status', leadStatusFilter);
-        }
-
-        const { data: leads, error: leadError } = await leadQuery;
-
-        if (leadError) throw leadError;
-        if (!leads || leads.length === 0) {
-            return res.status(400).json({ error: 'No leads found with a phone number for the given filter' });
-        }
+        const { leads, connection } = preflight;
 
         // 3. Create Campaign Record
         const { data: campaign, error: campError } = await supabase
@@ -68,11 +48,7 @@ router.post('/send', async (req, res) => {
 
         // 4. Enqueue SMS Jobs to BullMQ
         const jobs = leads.map(lead => {
-            // Personalize message (replace {{Name}} or {{name}})
-            let personalizedMessage = messageContent;
-            if (lead.name) {
-                personalizedMessage = personalizedMessage.replace(/{{[Nn]ame}}/g, lead.name);
-            }
+            const personalizedMessage = personalizeMessage(messageContent, lead);
 
             return {
                 name: `sms-send-${lead.id}`,
@@ -95,7 +71,11 @@ router.post('/send', async (req, res) => {
         res.json({
             success: true,
             campaignId: campaign.id,
-            message: `Campaign started. Queued ${jobs.length} SMS messages.`
+            message: `Campaign started. Queued ${jobs.length} SMS messages.`,
+            connection: {
+                status: connection.status,
+                verificationStatus: connection.verification_status,
+            },
         });
 
     } catch (error) {

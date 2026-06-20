@@ -1,26 +1,42 @@
 const express = require('express');
 const cors = require('cors');
-const dotenv = require('dotenv');
 const fs = require('fs');
 const path = require('path');
+const { loadBackendEnv } = require('./utils/loadBackendEnv');
 
-dotenv.config();
+loadBackendEnv();
 
 const app = express();
 
-const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173,http://localhost:3000')
+function normalizeOrigin(origin) {
+    return String(origin || '').trim().replace(/\/+$/, '');
+}
+
+const defaultAllowedOrigins = [
+    'http://localhost:3000',
+    'https://localhost:3000',
+    'http://localhost:5173',
+    'https://localhost:5173',
+    'http://localhost:5174',
+    'https://localhost:5174',
+];
+
+const configuredAllowedOrigins = (process.env.CORS_ORIGINS || '')
     .split(',')
-    .map((origin) => origin.trim())
+    .map(normalizeOrigin)
     .filter(Boolean);
+
+const allowedOrigins = new Set([...defaultAllowedOrigins, ...configuredAllowedOrigins].map(normalizeOrigin));
 
 app.use(cors({
     origin(origin, callback) {
-        if (!origin || allowedOrigins.includes(origin)) {
+        if (!origin || allowedOrigins.has(normalizeOrigin(origin))) {
             callback(null, true);
             return;
         }
 
-        callback(new Error(`CORS blocked request from origin: ${origin}`));
+        console.warn(`CORS blocked request from origin: ${origin}`);
+        callback(null, false);
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

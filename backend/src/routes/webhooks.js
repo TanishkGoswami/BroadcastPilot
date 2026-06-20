@@ -35,7 +35,11 @@ router.post('/google-drive', async (req, res) => {
             }
 
             // Push to the queue
-            await sheetSyncQueue.add('syncSheet', { conn });
+            await sheetSyncQueue.add('syncSheet', { conn }, {
+                jobId: `sheet-sync-${conn.id}`,
+                removeOnComplete: true,
+                removeOnFail: false
+            });
             console.log(`[Webhook] Queued instant sync for sheet ${conn.spreadsheet_id}`);
         }
 

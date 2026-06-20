@@ -2,6 +2,7 @@ const { Worker, Queue } = require('bullmq');
 const nodemailer = require('nodemailer');
 const supabase = require('../supabaseClient');
 const { createRedisConnection } = require('../utils/redisConnection');
+const { updateCampaignStatusFromLogs } = require('../services/campaignStatus');
 
 const connection = createRedisConnection();
 
@@ -94,8 +95,9 @@ const worker = new Worker('emailBroadcasts', async job => {
             channel: 'email',
             contact: email,
             message_id: info.messageId,
-            status: 'DELIVERED'
+            status: 'sent'
         });
+        await updateCampaignStatusFromLogs(campaignId);
         
         return { success: true, messageId: info.messageId };
     } catch (error) {
@@ -107,9 +109,10 @@ const worker = new Worker('emailBroadcasts', async job => {
             lead_id: leadId,
             channel: 'email',
             contact: email,
-            status: 'FAILED',
+            status: 'failed',
             error: error.message
         });
+        await updateCampaignStatusFromLogs(campaignId);
 
         throw error;
     }
@@ -118,17 +121,8 @@ const worker = new Worker('emailBroadcasts', async job => {
     concurrency: 5 // Send 5 emails concurrently
 });
 
-// Update campaign statuses when queue drains
 worker.on('drained', async () => {
-    console.log('Queue drained. Updating PROCESSING campaigns to COMPLETED...');
-    try {
-        await supabase
-            .from('b_campaigns')
-            .update({ status: 'COMPLETED' })
-            .eq('status', 'PROCESSING');
-    } catch (error) {
-        console.error('Error updating campaign statuses on drain:', error);
-    }
+    console.log('Email queue drained.');
 });
 
 worker.on('completed', job => {

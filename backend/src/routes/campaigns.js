@@ -124,8 +124,17 @@ router.get('/list/:organizationId', async (req, res) => {
         const formattedCampaigns = campaigns.map(campaign => {
             const campaignLogs = logs.filter(l => l.campaign_id === campaign.id);
             const totalTargets = campaign.total_targets || 0;
-            const sent = campaignLogs.filter(l => l.status.toLowerCase() === 'delivered' || l.status.toLowerCase() === 'sent').length;
-            const failed = campaignLogs.filter(l => l.status.toLowerCase() === 'failed').length;
+            const sentStatuses = new Set(['sent', 'delivered']);
+            const failedStatuses = new Set(['failed', 'undelivered', 'error']);
+            let sent = campaignLogs.filter(l => sentStatuses.has(String(l.status || '').toLowerCase())).length;
+            const failed = campaignLogs.filter(l => failedStatuses.has(String(l.status || '').toLowerCase())).length;
+            const normalizedCampaignStatus = String(campaign.status || '').toLowerCase();
+
+            // Legacy campaigns created before delivery-log fixes may have completed with no logs.
+            // For those only, show the campaign target count as an inferred sent count.
+            if (campaignLogs.length === 0 && normalizedCampaignStatus === 'completed' && totalTargets > 0) {
+                sent = totalTargets;
+            }
             
             // Just infer channel from the first log or default to whatsapp/email/sms based on template
             let channel = 'whatsapp';
@@ -138,7 +147,7 @@ router.get('/list/:organizationId', async (req, res) => {
             }
 
             // Dynamically compute status
-            let currentStatus = campaign.status.toLowerCase();
+            let currentStatus = normalizedCampaignStatus;
             if (currentStatus === 'processing' && totalTargets > 0) {
                 if (sent + failed >= totalTargets) {
                     currentStatus = 'completed';

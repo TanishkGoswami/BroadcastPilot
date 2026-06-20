@@ -2,24 +2,71 @@ const express = require('express');
 const router = express.Router();
 const authMiddleware = require('../middleware/authMiddleware');
 const supabase = require('../supabaseClient');
+const gapWhatsappClient = require('../services/gapWhatsappClient');
+
+function normalizeSendMessageError(error) {
+    const rawMessage =
+        error.response?.data?.error?.message ||
+        error.response?.data?.error_message ||
+        error.message ||
+        '';
+
+    const code = error.response?.data?.error?.code;
+    const subcode = error.response?.data?.error?.error_subcode;
+    const lowerMessage = String(rawMessage).toLowerCase();
+
+    if (
+        code === 10 ||
+        subcode === 2534022 ||
+        lowerMessage.includes('allowed time') ||
+        lowerMessage.includes('outside the allowed') ||
+        lowerMessage.includes('समयावधि')
+    ) {
+        return 'This conversation is outside Meta’s allowed reply window. Ask the customer to send a new message, then reply again.';
+    }
+
+    return rawMessage || 'Failed to send message';
+}
 
 // Get Conversations for Org
 router.get('/conversations', authMiddleware, async (req, res) => {
     try {
         const organization_id = req.user.organization_id;
+        const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
 
-        const { data, error } = await supabase
+        let query = supabase
             .from('b_conversations')
             .select(`
                 *,
                 contacts:b_contacts(id, name, channel_user_id, custom_name, phone, channel_account_id, profile_pic)
             `)
-            .eq('organization_id', organization_id)
-            .order('last_message_at', { ascending: false });
+            .eq('organization_id', organization_id);
+
+        if (gapWhatsappClient.isEnabled()) {
+            query = query.neq('channel', 'whatsapp');
+        }
+
+        const { data, error } = await query.order('last_message_at', { ascending: false });
 
         if (error) throw error;
 
-        res.json(data);
+        let conversations = data || [];
+
+        if (gapWhatsappClient.isEnabled()) {
+            try {
+                const gapConversations = await gapWhatsappClient.listConversations({
+                    organizationId: organization_id,
+                    token,
+                });
+                conversations = [...conversations, ...gapConversations].sort((a, b) => {
+                    return new Date(b.last_message_at || 0) - new Date(a.last_message_at || 0);
+                });
+            } catch (gapError) {
+                console.error('Failed to fetch GAP WhatsApp conversations', gapError.response?.data || gapError.message);
+            }
+        }
+
+        res.json(conversations);
     } catch (err) {
         console.error("Failed to fetch conversations", err);
         res.status(500).json({ error: 'Failed to fetch conversations' });
@@ -31,6 +78,15 @@ router.get('/messages/:conversationId', authMiddleware, async (req, res) => {
     try {
         const organization_id = req.user.organization_id;
         const { conversationId } = req.params;
+        const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
+
+        if (String(conversationId).startsWith('gap:')) {
+            const messages = await gapWhatsappClient.listMessages({
+                conversationId,
+                token,
+            });
+            return res.json(messages);
+        }
 
         const { data, error } = await supabase
             .from('b_messages')
@@ -59,9 +115,21 @@ router.post('/messages', authMiddleware, async (req, res) => {
     try {
         const organization_id = req.user.organization_id;
         const { conversationId, text } = req.body;
+        const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
 
         if (!conversationId || !text) {
             return res.status(400).json({ error: 'Missing conversationId or text' });
+        }
+
+        if (String(conversationId).startsWith('gap:')) {
+            const message = await gapWhatsappClient.sendMessage({
+                conversationId,
+                text,
+                token,
+                organizationId: organization_id,
+            });
+
+            return res.json(message);
         }
 
         const { data: conv, error: convErr } = await supabase
@@ -130,7 +198,7 @@ router.post('/messages', authMiddleware, async (req, res) => {
 
     } catch (err) {
         console.error("Failed to send message", err.response?.data || err);
-        const errorMsg = err.response?.data?.error?.message || err.response?.data?.error_message || 'Failed to send message';
+        const errorMsg = normalizeSendMessageError(err);
         res.status(500).json({ error: errorMsg });
     }
 });

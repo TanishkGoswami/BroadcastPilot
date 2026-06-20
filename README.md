@@ -68,6 +68,55 @@ Important variables:
 - `CORS_ORIGINS`: comma-separated allowed browser origins for the API.
 - `REDIS_URL`: Redis connection string used by BullMQ workers.
 
+## GAP Whatsapp Inbox Integration
+
+BroadcastPilot can read chats from the existing GAP Whatsapp backend and send agent replies through it without changing GAP Whatsapp tables or behavior.
+
+- The Inbox reads WhatsApp conversations and messages from GAP.
+- WhatsApp replies from BroadcastPilot are proxied to GAP.
+- GAP remains the WhatsApp source of truth and enforces Meta's open customer window rules.
+- Meta Lead Ads and BroadcastPilot lead tables are not synced or changed by this bridge.
+
+Configure the backend environment:
+
+```env
+GAP_WHATSAPP_ENABLED=true
+GAP_WHATSAPP_API_URL=http://localhost:5001
+GAP_WHATSAPP_API_KEY=
+GAP_WHATSAPP_CONVERSATIONS_PATH=/api/conversations
+GAP_WHATSAPP_MESSAGES_LIMIT=200
+GAP_WHATSAPP_MESSAGES_PATH=/api/messages/:conversationId
+GAP_WHATSAPP_SEND_MESSAGE_PATH=/api/conversations/:conversationId/send
+```
+
+If GAP uses different route names, update only these path env vars. No Supabase migration is required for this Inbox bridge.
+
+## Email and SMS Channel Standards
+
+BroadcastPilot uses a ManyChat-style channel model for Email and SMS:
+
+- Email stores a sender identity, sends from the verified platform SMTP domain, and uses unverified sender emails as Reply-To until domain authentication is added.
+- SMS uses platform-managed Twilio infrastructure with a compliance intake before broadcasts are considered active.
+- Campaign routes run a preflight check before queueing sends. Channels must be active, and recipients must be opted in.
+
+Required backend env for platform-managed SMS:
+
+```env
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_AUTH_TOKEN=your_twilio_auth_token
+TWILIO_PHONE_NUMBER=+15551234567
+```
+
+If Twilio returns an authentication error during a broadcast, BroadcastPilot marks the SMS channel as `failed` and blocks future sends until the env credentials are corrected and the channel is saved again in Settings.
+
+Run `backend/supabase_schema.sql` in Supabase to add:
+
+- `b_channel_connections`
+- `b_sms_number_requests`
+- consent fields on `b_leads`
+
+Email/SMS campaign sends are filtered by consent fields such as `email_opt_in`, `email_unsubscribed_at`, `sms_opt_in`, and `sms_opt_out_at`.
+
 ## Security Notes
 
 - Tokens are stripped from the URL immediately after the session is accepted.

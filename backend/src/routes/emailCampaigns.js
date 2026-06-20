@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const supabase = require('../supabaseClient');
 const { emailQueue } = require('../workers/emailWorker');
+const { personalizeMessage } = require('../utils/personalizeMessage');
+const { preflightEmailCampaign } = require('../services/campaignPreflight');
 
 function normalizeEmailSettings(creds) {
     return {
@@ -33,28 +35,12 @@ router.post('/broadcast', async (req, res) => {
             return res.status(400).json({ error: 'Missing required parameters' });
         }
 
-        // 1. Fetch Client's SMTP Credentials
-        const { data: creds, error: credError } = await supabase
-            .from('b_email_credentials')
-            .select('*')
-            .eq('organization_id', organizationId)
-            .single();
-
-        if (credError || !creds) {
-            return res.status(400).json({ error: 'Email Channel is not connected. Please go to Settings to configure your Contact Information.' });
+        const preflight = await preflightEmailCampaign({ organizationId, targetStatus });
+        if (!preflight.ok) {
+            return res.status(400).json({ error: preflight.error, connection: preflight.connection });
         }
 
-        // 2. Fetch Leads that have emails
-        const { data: leads, error: leadError } = await supabase
-            .from('b_leads')
-            .select('*')
-            .eq('organization_id', organizationId)
-            .eq('status', targetStatus)
-            .not('email', 'is', null);
-
-        if (leadError || !leads || leads.length === 0) {
-            return res.status(400).json({ error: `No leads with emails found for status: ${targetStatus}` });
-        }
+        const { creds, leads, connection } = preflight;
 
         // 3. Create Campaign Record
         const { data: campaign, error: campError } = await supabase
@@ -81,7 +67,7 @@ router.post('/broadcast', async (req, res) => {
                 leadId: lead.id, 
                 email: lead.email,
                 subject: subject,
-                htmlBody: htmlBody,
+                htmlBody: personalizeMessage(htmlBody, lead),
                 campaignId: campaign.id,
                 ...emailSettings
             },
@@ -99,7 +85,11 @@ router.post('/broadcast', async (req, res) => {
         res.json({
             success: true,
             campaign,
-            enqueuedCount: jobs.length
+            enqueuedCount: jobs.length,
+            connection: {
+                status: connection.status,
+                verificationStatus: connection.verification_status,
+            },
         });
 
     } catch (error) {
@@ -115,7 +105,11 @@ router.get('/unsubscribe/:leadId', async (req, res) => {
         
         const { error } = await supabase
             .from('b_leads')
-            .update({ status: 'UNSUBSCRIBED' })
+            .update({
+                status: 'UNSUBSCRIBED',
+                email_opt_in: false,
+                email_unsubscribed_at: new Date().toISOString()
+            })
             .eq('id', leadId);
 
         if (error) throw error;

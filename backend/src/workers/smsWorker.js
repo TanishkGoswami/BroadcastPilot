@@ -2,8 +2,70 @@ const { Worker } = require('bullmq');
 const twilio = require('twilio');
 const supabase = require('../supabaseClient');
 const { createRedisConnection } = require('../utils/redisConnection');
+const { updateCampaignStatusFromLogs } = require('../services/campaignStatus');
 
 const connection = createRedisConnection();
+
+function createSmsConfigError(message) {
+    const error = new Error(message);
+    error.code = 'SMS_PROVIDER_CONFIG';
+    return error;
+}
+
+function getTwilioPlatformConfig() {
+    const accountSid = String(process.env.TWILIO_ACCOUNT_SID || '').trim();
+    const authToken = String(process.env.TWILIO_AUTH_TOKEN || '').trim();
+
+    if (!accountSid || !authToken) {
+        throw createSmsConfigError('Twilio platform credentials are missing. Set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN in backend .env.');
+    }
+
+    if (!/^AC[a-f0-9]{32}$/i.test(accountSid)) {
+        throw createSmsConfigError('Twilio platform credentials are invalid. TWILIO_ACCOUNT_SID must be a valid Account SID.');
+    }
+
+    return { accountSid, authToken };
+}
+
+function isTwilioAuthError(error) {
+    return error?.status === 401
+        || error?.code === 20003
+        || String(error?.message || '').toLowerCase() === 'authenticate';
+}
+
+function isProviderConfigError(error) {
+    return error?.code === 'SMS_PROVIDER_CONFIG' || isTwilioAuthError(error);
+}
+
+function getSafeSmsError(error) {
+    if (error?.code === 'SMS_PROVIDER_CONFIG') return error.message;
+
+    if (isTwilioAuthError(error)) {
+        return 'Twilio authentication failed. Verify TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN in backend .env, then reactivate the SMS channel.';
+    }
+
+    return error.message || 'SMS delivery failed';
+}
+
+async function markSmsConnectionFailed(organizationId, safeError) {
+    if (!organizationId) return;
+
+    const { error } = await supabase
+        .from('b_channel_connections')
+        .update({
+            status: 'failed',
+            verification_status: 'provider_error',
+            last_error: safeError,
+            updated_at: new Date().toISOString(),
+        })
+        .eq('organization_id', organizationId)
+        .eq('channel', 'sms')
+        .eq('provider', 'twilio');
+
+    if (error && error.code !== '42P01') {
+        console.error('[SMS Worker] Failed to update SMS channel status:', error.message);
+    }
+}
 
 // Process SMS jobs
 const smsWorker = new Worker('smsQueue', async job => {
@@ -23,14 +85,8 @@ const smsWorker = new Worker('smsQueue', async job => {
             throw new Error(`SMS assigned number not found for org ${organizationId}`);
         }
 
-        // 2. Initialize Twilio client using MASTER SaaS Credentials
-        const accountSid = process.env.TWILIO_ACCOUNT_SID;
-        const authToken = process.env.TWILIO_AUTH_TOKEN;
-        
-        if (!accountSid || !authToken) {
-            throw new Error('Master Twilio credentials not found in backend .env');
-        }
-
+        // 2. Initialize Twilio client using platform-managed SaaS credentials.
+        const { accountSid, authToken } = getTwilioPlatformConfig();
         const client = twilio(accountSid, authToken);
 
         // 3. Send SMS
@@ -53,11 +109,23 @@ const smsWorker = new Worker('smsQueue', async job => {
                 message_id: message.sid,
                 status: 'sent'
             });
+        await updateCampaignStatusFromLogs(campaignId);
 
         return { success: true, messageId: message.sid };
 
     } catch (error) {
-        console.error(`[SMS Worker] Failed Job ${job.id}:`, error.message);
+        const safeError = getSafeSmsError(error);
+
+        if (isProviderConfigError(error)) {
+            await markSmsConnectionFailed(organizationId, safeError);
+        }
+
+        console.error(`[SMS Worker] Failed Job ${job.id}:`, {
+            message: safeError,
+            providerStatus: error.status,
+            providerCode: error.code,
+            providerMoreInfo: error.moreInfo,
+        });
 
         // 5. Log Failure in b_delivery_logs
         await supabase
@@ -68,10 +136,11 @@ const smsWorker = new Worker('smsQueue', async job => {
                 channel: 'sms',
                 contact: toPhone,
                 status: 'failed',
-                error: error.message
+                error: safeError
             });
+        await updateCampaignStatusFromLogs(campaignId);
 
-        throw error; // Let BullMQ handle retries if configured
+        throw new Error(safeError); // Let BullMQ handle retries if configured
     }
 }, { connection });
 
